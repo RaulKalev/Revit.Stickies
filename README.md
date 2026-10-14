@@ -25,7 +25,7 @@ never end up on a client drawing.
 
 Stickies works with **Revit 2024** and **Revit 2026** on Windows.
 
-1. Get the `Stickies-<version>.zip` package and unzip it.
+1. Download `Stickies-<version>.zip` from [Releases](https://github.com/RaulKalev/Revit.Stickies/releases/latest) and unzip it.
 2. Close Revit and double-click **Install.cmd**. It sets up Stickies for every supported Revit version on the computer,
    for your Windows user only (no administrator rights needed).
 3. Start Revit. Stickies is on the **RK Tools** tab.
