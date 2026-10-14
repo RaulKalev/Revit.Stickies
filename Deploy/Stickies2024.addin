@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<!--
+  Stickies for Revit 2024 (.NET Framework 4.8).
+  Copy to %ProgramData%\Autodesk\Revit\Addins\2024\ (all users) or %AppData%\Autodesk\Revit\Addins\2024\ (current user)
+  and point <Assembly> to the net48 build of Stickies.dll (single merged DLL):
+    Stickies\bin\Release\net48\Stickies.dll
+-->
+<RevitAddIns>
+  <AddIn Type="Application">
+    <Name>Stickies</Name>
+    <Assembly>C:\Path\To\Stickies\net48\Stickies.dll</Assembly>
+    <FullClassName>Stickies.App</FullClassName>
+    <AddInId>B4F1A9D2-6C37-4E85-9F20-7D1E3A5C8B61</AddInId>
+    <VendorId>RaulKalev</VendorId>
+    <VendorDescription>Raul Kalev (RK Tools)</VendorDescription>
+  </AddIn>
+</RevitAddIns>

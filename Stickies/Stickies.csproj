@@ -1,0 +1,88 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<!--
+	  Stickies Revit plugin.
+	    net48           -> Revit 2024 (.NET Framework 4.8)
+	    net8.0-windows  -> Revit 2026 (.NET 8)
+	  Shared code is restricted to C# 7.3. Revit-version-specific code must live behind
+	  the REVIT2026 / REVIT2024 symbols.
+	-->
+	<PropertyGroup>
+		<TargetFrameworks>net48;net8.0-windows</TargetFrameworks>
+		<AssemblyName>Stickies</AssemblyName>
+		<RootNamespace>Stickies</RootNamespace>
+		<LangVersion>7.3</LangVersion>
+		<Nullable>disable</Nullable>
+		<ImplicitUsings>disable</ImplicitUsings>
+		<UseWPF>true</UseWPF>
+		<UseWindowsForms>true</UseWindowsForms>
+		<PlatformTarget>x64</PlatformTarget>
+		<Version>0.1.0</Version>
+		<Product>Stickies</Product>
+		<Company>RK Tools</Company>
+		<Description>Stickies – internal drawing review markers for Revit.</Description>
+		<NoWarn>$(NoWarn);CA1416</NoWarn>
+	</PropertyGroup>
+
+	<!-- Local developer output (same convention as the other RK Tools plugins). CI builds use the default bin folder. -->
+	<PropertyGroup Condition="'$(CI)' != 'true' And '$(StickiesUseDefaultOutput)' != 'true'">
+		<BaseOutputPath>$(UserProfile)\Desktop\DevDlls\$(MSBuildProjectName)\</BaseOutputPath>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(TargetFramework)' == 'net48'">
+		<DefineConstants>$(DefineConstants);REVIT2024</DefineConstants>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(TargetFramework)' == 'net8.0-windows'">
+		<DefineConstants>$(DefineConstants);REVIT2026</DefineConstants>
+	</PropertyGroup>
+
+	<!-- Ribbon icons, loaded by pack URI: "Dark" is the light-coloured icon for Revit's dark theme. -->
+	<ItemGroup>
+		<EmbeddedResource Remove="Assets\Dark - Stickies.tiff" />
+		<EmbeddedResource Remove="Assets\Light - Stickies.tiff" />
+		<Resource Include="Assets\Dark - Stickies.tiff" />
+		<Resource Include="Assets\Light - Stickies.tiff" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Fody" Version="6.8.2">
+			<PrivateAssets>all</PrivateAssets>
+			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+		</PackageReference>
+		<PackageReference Include="Costura.Fody" Version="6.0.0">
+			<PrivateAssets>all</PrivateAssets>
+		</PackageReference>
+		<PackageReference Include="MaterialDesignColors" Version="5.2.0" />
+		<PackageReference Include="MaterialDesignThemes" Version="5.2.0" />
+		<PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+		<PackageReference Include="ricaun.Revit.UI" Version="0.8.0" />
+	</ItemGroup>
+
+	<!-- Revit 2024 (.NET Framework 4.8) -->
+	<ItemGroup Condition="'$(TargetFramework)' == 'net48'">
+		<PackageReference Include="Nice3point.Revit.Api.RevitAPI" Version="2024.2.0" ExcludeAssets="runtime" />
+		<PackageReference Include="Nice3point.Revit.Api.RevitAPIUI" Version="2024.2.0" ExcludeAssets="runtime" />
+		<PackageReference Include="Nice3point.Revit.Api.AdWindows" Version="2024.0.0" ExcludeAssets="runtime" />
+	</ItemGroup>
+
+	<!-- Revit 2026 (.NET 8) -->
+	<ItemGroup Condition="'$(TargetFramework)' == 'net8.0-windows'">
+		<PackageReference Include="Nice3point.Revit.Api.RevitAPI" Version="2026.0.4" ExcludeAssets="runtime" />
+		<PackageReference Include="Nice3point.Revit.Api.RevitAPIUI" Version="2026.0.4" ExcludeAssets="runtime" />
+		<PackageReference Include="Nice3point.Revit.Api.AdWindows" Version="2026.4.0" ExcludeAssets="runtime" />
+	</ItemGroup>
+
+	<!--
+	  Stickies.Core is compiled into Stickies.dll instead of shipping as a second assembly. With ricaun AppLoader
+	  hot reload, a Core assembly loaded by an earlier reload (served by that reload's Costura resolver) would be
+	  reused by the new Stickies.dll and fail with MissingMethodException. One assembly always reloads as a whole.
+	  The Stickies.Core project still exists on its own for the Revit-free unit tests.
+	-->
+	<ItemGroup>
+		<Compile Include="..\Stickies.Core\**\*.cs" Exclude="..\Stickies.Core\bin\**;..\Stickies.Core\obj\**" Link="Core\%(RecursiveDir)%(Filename)%(Extension)" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<None Include="..\Deploy\*.addin" Link="Deploy\%(Filename)%(Extension)" />
+	</ItemGroup>
+</Project>
