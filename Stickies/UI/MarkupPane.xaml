@@ -441,7 +441,7 @@
                         x:Name="SearchBox"
                         AutomationProperties.Name="Search issues"
                         Style="{StaticResource Input.Text}"
-                        Tag="Search issues"
+                        Tag="Search issues (Ctrl+F)"
                         Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged, Delay=200}" />
                 </DockPanel>
 
@@ -716,6 +716,12 @@
                                     Style="{StaticResource Type.Caption}"
                                     Text="{Binding ResolvedText}"
                                     Visibility="{Binding ResolvedText, Converter={StaticResource NotEmptyToVis}}" />
+                                <TextBlock
+                                    Margin="0,2,0,0"
+                                    Style="{StaticResource Type.Caption}"
+                                    Text="{Binding ArchivedText}"
+                                    TextWrapping="Wrap"
+                                    Visibility="{Binding ArchivedText, Converter={StaticResource NotEmptyToVis}}" />
                                 <StackPanel Margin="0,4,0,0" Orientation="Horizontal">
                                     <materialDesign:PackIcon
                                         Width="12"
@@ -763,6 +769,7 @@
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
                             <TextBox
+                                x:Name="CommentBox"
                                 AutomationProperties.Name="New comment"
                                 MinHeight="48"
                                 MaxHeight="120"
@@ -805,44 +812,56 @@
                     Padding="16,6,10,6"
                     BorderBrush="{DynamicResource Separator}"
                     BorderThickness="0,1,0,0">
-                    <DockPanel>
-                        <Button
-                            Padding="8,0"
-                            Click="ChooseFolder_Click"
-                            Content="Change…"
-                            DockPanel.Dock="Right"
-                            Style="{StaticResource Button.Plain}"
-                            ToolTip="Use another markup folder for this model" />
-                        <materialDesign:PackIcon
-                            Width="14"
-                            Height="14"
-                            Margin="0,0,6,0"
-                            VerticalAlignment="Center"
-                            Foreground="{DynamicResource Text.Tertiary}"
-                            Kind="FolderOutline" />
-                        <StackPanel
-                            Margin="0,0,8,0"
-                            VerticalAlignment="Center"
-                            DockPanel.Dock="Right"
-                            Orientation="Horizontal"
+                    <StackPanel>
+                        <!--  Sync conflicts and unreadable files: skipped, never loaded; listed in the tooltip  -->
+                        <DockPanel
+                            Margin="0,0,0,6"
                             ToolTip="{Binding Session.SkippedDetails}"
                             Visibility="{Binding Session.SkippedSummary, Converter={StaticResource NotEmptyToVis}}">
+                            <Button
+                                Padding="8,0"
+                                Click="OpenFolder_Click"
+                                Content="Open folder"
+                                DockPanel.Dock="Right"
+                                Style="{StaticResource Button.Plain}"
+                                ToolTip="Show the files in Explorer, to compare or delete the conflict copies" />
                             <materialDesign:PackIcon
                                 Width="14"
                                 Height="14"
+                                Margin="0,0,6,0"
                                 VerticalAlignment="Center"
-                                AutomationProperties.Name="{Binding Session.SkippedSummary}"
                                 Foreground="{DynamicResource Status.Warning}"
                                 Kind="AlertOutline" />
-                        </StackPanel>
-                        <TextBlock
-                            VerticalAlignment="Center"
-                            Style="{StaticResource Type.Caption}"
-                            Text="{Binding Session.FolderPath}"
-                            TextTrimming="CharacterEllipsis"
-                            TextWrapping="NoWrap"
-                            ToolTip="{Binding Session.FolderPath}" />
-                    </DockPanel>
+                            <TextBlock
+                                VerticalAlignment="Center"
+                                Style="{StaticResource Type.Caption}"
+                                Text="{Binding Session.SkippedSummary}"
+                                TextWrapping="Wrap" />
+                        </DockPanel>
+                        <DockPanel>
+                            <Button
+                                Padding="8,0"
+                                Click="ChooseFolder_Click"
+                                Content="Change…"
+                                DockPanel.Dock="Right"
+                                Style="{StaticResource Button.Plain}"
+                                ToolTip="Use another markup folder for this model" />
+                            <materialDesign:PackIcon
+                                Width="14"
+                                Height="14"
+                                Margin="0,0,6,0"
+                                VerticalAlignment="Center"
+                                Foreground="{DynamicResource Text.Tertiary}"
+                                Kind="FolderOutline" />
+                            <TextBlock
+                                VerticalAlignment="Center"
+                                Style="{StaticResource Type.Caption}"
+                                Text="{Binding Session.FolderPath}"
+                                TextTrimming="CharacterEllipsis"
+                                TextWrapping="NoWrap"
+                                ToolTip="{Binding Session.FolderPath}" />
+                        </DockPanel>
+                    </StackPanel>
                 </Border>
             </Grid>
         </Grid>

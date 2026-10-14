@@ -39,6 +39,7 @@ namespace Stickies.Session
         private readonly LocalSettingsStore _settingsStore;
         private readonly OverlayState _overlay;
         private MarkupWatcher _watcher;
+        private System.Threading.Timer _compactTimer;
         private IssueStore _store;
         private int _loadGeneration;
         private bool _applyingSettings;
@@ -84,7 +85,8 @@ namespace Stickies.Session
         public bool HasIssues => _issues.Count > 0;
         public string IssueSummary => _issues.Count == 1 ? "1 issue" : _issues.Count + " issues";
         public string SkippedSummary => _skipped.Count == 0 ? null
-            : _skipped.Count == 1 ? "1 file in active/ was not read" : _skipped.Count + " files in active/ were not read";
+            : _skipped.Count == 1 ? "1 file was skipped (a sync conflict copy or unreadable)"
+            : _skipped.Count + " files were skipped (sync conflict copies or unreadable)";
         public string SkippedDetails => string.Join(Environment.NewLine, _skipped.Select(s => Path.GetFileName(s.Path) + " – " + s.Reason));
 
         // ------------------------------------------------------------------ model
@@ -154,6 +156,7 @@ namespace Stickies.Session
                     AppLog.Warn("Markup folder " + root + " was set up for another model (" + project.ModelGuid + ").");
 
                 _watcher = new MarkupWatcher(folder);
+                StartCompaction(_store);
                 _watcher.Changed += (s, e) => _dispatcher.BeginInvoke(new Action(Reload));
                 State = SessionState.Connected;
                 Reload();
@@ -168,6 +171,8 @@ namespace Stickies.Session
         private void Disconnect()
         {
             _loadGeneration++;
+            _compactTimer?.Dispose();
+            _compactTimer = null;
             _watcher?.Dispose();
             _watcher = null;
             _store = null;
@@ -181,7 +186,7 @@ namespace Stickies.Session
             var store = _store;
             if (store == null) return;
             var generation = ++_loadGeneration;
-            Task.Run(() => store.LoadActive()).ContinueWith(t => _dispatcher.BeginInvoke(new Action(() =>
+            Task.Run(() => store.LoadAll()).ContinueWith(t => _dispatcher.BeginInvoke(new Action(() =>
             {
                 if (generation != _loadGeneration) return; // a newer load or another model took over
                 if (t.IsFaulted)
@@ -219,6 +224,38 @@ namespace Stickies.Session
         {
             var store = _store;
             return store == null ? Task.FromResult<Issue>(null) : Task.Run(() => store.Load(id));
+        }
+
+        // ------------------------------------------------------------------ archiving
+
+        /// <summary>How soon after connecting, and how often after that, done issues are archived.</summary>
+        public static TimeSpan CompactFirst { get; set; } = TimeSpan.FromMinutes(1);
+        public static TimeSpan CompactEvery { get; set; } = TimeSpan.FromHours(1);
+
+        /// <summary>
+        /// Archives done issues in the background (file work only, no Revit API): a minute after connecting, then once an
+        /// hour. Only one session at a time does it (see <see cref="Compactor"/>).
+        /// </summary>
+        private void StartCompaction(IssueStore store)
+        {
+            _compactTimer?.Dispose();
+            _compactTimer = new System.Threading.Timer(_ =>
+            {
+                try
+                {
+                    var result = new Compactor(store, Environment.UserName).Run();
+                    if (!result.Ran) AppLog.Info("Archiving skipped: " + result.SkippedReason);
+                    else if (result.Archived > 0)
+                    {
+                        AppLog.Info("Archived " + result.Archived + " done issue(s) in " + store.Folder.ArchiveDir);
+                        _dispatcher.BeginInvoke(new Action(() => { if (ReferenceEquals(store, _store)) Reload(); }));
+                    }
+                }
+                catch (Exception ex)
+                {
+                    AppLog.Error("Archiving failed", ex);
+                }
+            }, null, CompactFirst, CompactEvery);
         }
 
         private void Fail(string message)

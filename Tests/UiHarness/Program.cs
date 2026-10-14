@@ -39,6 +39,7 @@ namespace Stickies.UiHarness
             _out = args.Length > 0 ? args[0] : Path.Combine(AppContext.BaseDirectory, "out");
             Directory.CreateDirectory(_out);
             ThemeManager.PrefsPath = Path.Combine(_out, "ui-prefs.json"); // never touch the real user preferences
+            MarkupSession.CompactFirst = TimeSpan.FromHours(1); // archiving is run explicitly below, not on a timer
             if (File.Exists(ThemeManager.PrefsPath)) File.Delete(ThemeManager.PrefsPath);
 
             var app = new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
@@ -279,6 +280,32 @@ namespace Stickies.UiHarness
             colleague.Save(theirs);
             Check(WaitFor(() => editor.IsLow), "open issue follows a colleague's change when not editing");
 
+            // ================================================================ archive (Phase 5)
+            var oldDone = Issue("Wrong socket height in room 101", "mari", IssueStatus.Resolved, IssuePriority.Normal, null, DateTimeOffset.Now.AddDays(-20));
+            oldDone.Number = 50;
+            oldDone.ResolvedBy = "joonas";
+            oldDone.ResolvedAt = oldDone.Modified;
+            colleague.Save(oldDone);
+            Check(WaitFor(() => session.Issues.Any(i => i.Id == oldDone.Id)), "old resolved issue listed");
+            var compaction = new Compactor(colleague, "joonas").Run();
+            Check(compaction.Ran && compaction.Archived >= 1 && colleague.Load(oldDone.Id) == null, "archiving moves the old done issue out of active/ (" + compaction.Archived + ")");
+            Check(WaitFor(() => session.Issues.Any(i => i.Id == oldDone.Id && i.IsArchived)), "archived issue still listed, marked archived");
+            vm.Scope = "resolved";
+            Check(vm.Rows.Any(r => r.Id == oldDone.Id && r.ToolTip.Contains("Archived")), "archived issue under Resolved, tooltip says archived");
+            vm.Selected = vm.Rows.First(r => r.Id == oldDone.Id);
+            Check(vm.Editor?.ArchivedText != null, "archived issue explains it is archived");
+            vm.Editor.SetStatusCommand.Execute(IssueStatus.Open);
+            Check(WaitFor(() => colleague.Load(oldDone.Id)?.Status == IssueStatus.Open), "reopening an archived issue brings it back to active/");
+            Check(WaitFor(() => session.Issues.Count(i => i.Id == oldDone.Id) == 1 && !session.Issues.First(i => i.Id == oldDone.Id).IsArchived), "listed once, active again");
+            vm.Scope = "all";
+            File.WriteAllText(Path.Combine(root, "active", oldDone.Id + " (Joonas's conflicted copy 2026-10-14).json"), "{}");
+            Check(WaitFor(() => session.SkippedSummary != null && session.SkippedSummary.Contains("skipped")), "sync conflict copies are reported in words");
+            vm.Selected = vm.Rows.First(r => r.Id == first);
+            Pump();
+            pane.RaiseEvent(new KeyEventArgs(Keyboard.PrimaryDevice, PresentationSource.FromVisual(pane), 0, Key.Escape) { RoutedEvent = Keyboard.PreviewKeyDownEvent });
+            Check(vm.Editor == null, "Esc closes the open issue");
+            Capture(pane, "18_conflict_notice_dark.png");
+
             // ================================================================ local settings, hot reload, themes
             overlay.Toggle();
             Check(!settingsStore.Load(model.ModelGuid).OverlayVisible, "marker visibility saved locally for the project");
@@ -297,7 +324,7 @@ namespace Stickies.UiHarness
             session.Dispose();
             shellHost.Content = reloaded;
             reloadedSession.SetModel(model);
-            Check(WaitFor(() => reloaded.ViewModel.Rows.Count == 5), "hot reload: new pane loads the issues");
+            Check(WaitFor(() => reloaded.ViewModel.Rows.Count == reloadedSession.IssueCount && reloadedSession.IssueCount == 6), "hot reload: new pane loads the issues (" + reloaded.ViewModel.Rows.Count + ")");
             overlay.Toggle();
             Pump();
             Check(Markers(reloaded).IsChecked == false && Markers(pane).IsChecked == true, "hot reload: only the new pane listens");

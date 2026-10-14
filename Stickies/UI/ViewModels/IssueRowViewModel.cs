@@ -48,6 +48,7 @@ namespace Stickies.UI.ViewModels
             StatusText + " · " + Display.Priority(Issue.Priority) + " priority" + Environment.NewLine +
             "Created by " + Issue.Author + ", " + Display.Exact(Issue.Created) + Environment.NewLine +
             "Changed " + Display.Exact(Issue.Modified) + Environment.NewLine +
+            (Issue.IsArchived ? "Archived (done and unchanged for over a week)" + Environment.NewLine : "") +
             (Issue.View != null ? "In " + Issue.View.Name + Environment.NewLine : "") +
             "Double-click to open the view";
 

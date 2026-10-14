@@ -40,6 +40,7 @@ namespace Stickies.UI
             Unloaded += (s, e) => _overlay.Changed -= OnOverlayChanged;
 
             ViewModel.PropertyChanged += OnViewModelPropertyChanged;
+            PreviewKeyDown += OnPreviewKeyDown;
         }
 
         public PaneViewModel ViewModel { get; }
@@ -94,6 +95,45 @@ namespace Stickies.UI
             PeopleButton.IsChecked = false;
         }
 
+        // ------------------------------------------------------------------ keyboard
+
+        /// <summary>
+        /// Shortcuts while the panel has focus: Ctrl+F search, Ctrl+Enter save the issue (or post the comment being
+        /// typed), Esc close the issue / discard a new one / clear the search, F5 reload, Enter open the issue's view
+        /// (in the list). Ctrl+S and Ctrl+N are avoided: Revit could also act on them (save the model, new project).
+        /// </summary>
+        private void OnPreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            var mods = Keyboard.Modifiers;
+            var editor = ViewModel.Editor;
+
+            if (e.Key == Key.F && mods == ModifierKeys.Control)
+            {
+                SearchBox.Focus();
+                SearchBox.SelectAll();
+                e.Handled = true;
+            }
+            else if (e.Key == Key.Enter && mods == ModifierKeys.Control && editor != null)
+            {
+                var command = CommentBox.IsKeyboardFocusWithin ? editor.AddCommentCommand : editor.SaveCommand;
+                if (command.CanExecute(null)) command.Execute(null);
+                e.Handled = true;
+            }
+            else if (e.Key == Key.Escape && mods == ModifierKeys.None)
+            {
+                if (SearchBox.IsKeyboardFocusWithin && !string.IsNullOrEmpty(ViewModel.SearchText)) ViewModel.SearchText = null;
+                else if (editor != null && editor.IsNew) editor.RevertCommand.Execute(null);
+                else if (editor != null && !editor.IsDirty) ViewModel.CloseEditorCommand.Execute(null);
+                else return;
+                e.Handled = true;
+            }
+            else if (e.Key == Key.F5 && mods == ModifierKeys.None)
+            {
+                Session.Reload();
+                e.Handled = true;
+            }
+        }
+
         // ------------------------------------------------------------------ header
 
         private void OnOverlayChanged(object sender, EventArgs e) => UpdateMarkersButton();
@@ -128,6 +168,14 @@ namespace Stickies.UI
         // ------------------------------------------------------------------ folder
 
         private void CreateNextToModel_Click(object sender, RoutedEventArgs e) => Session.CreateNextToModel();
+
+        private void OpenFolder_Click(object sender, RoutedEventArgs e)
+        {
+            var folder = Session.FolderPath;
+            if (string.IsNullOrEmpty(folder)) return;
+            try { Process.Start(new ProcessStartInfo("explorer.exe", "\"" + folder + "\"") { UseShellExecute = true }); }
+            catch (Exception ex) { Infrastructure.AppLog.Warn("Opening the markup folder failed: " + ex.Message); }
+        }
 
         private void ChooseFolder_Click(object sender, RoutedEventArgs e)
         {

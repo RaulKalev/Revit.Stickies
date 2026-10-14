@@ -105,6 +105,55 @@ namespace Stickies.Core.Store
             return result;
         }
 
+        private static readonly System.Text.RegularExpressions.Regex ArchiveName =
+            new System.Text.RegularExpressions.Regex(@"^\d{4}-\d{2}\.json$", System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+
+        /// <summary>
+        /// All issues: <c>active/</c> plus the monthly files in <c>archive/</c>. An issue in both (reopened after it was
+        /// archived) counts once, from <c>active/</c>. Archived issues are marked <see cref="Issue.IsArchived"/>.
+        /// </summary>
+        public IssueLoadResult LoadAll()
+        {
+            var result = LoadActive();
+            var active = new HashSet<string>(result.Issues.Select(i => i.Id));
+            foreach (var issue in LoadArchive(result.Skipped))
+            {
+                if (!active.Add(issue.Id)) continue;
+                issue.IsArchived = true;
+                result.Issues.Add(issue);
+            }
+            return result;
+        }
+
+        /// <summary>Issues in the archive files (newest month first when an id repeats). Unreadable files go to <paramref name="skipped"/>.</summary>
+        public List<Issue> LoadArchive(List<SkippedFile> skipped = null)
+        {
+            var issues = new Dictionary<string, Issue>();
+            if (!Directory.Exists(Folder.ArchiveDir)) return new List<Issue>();
+            foreach (var path in Directory.EnumerateFiles(Folder.ArchiveDir).OrderByDescending(p => p, StringComparer.OrdinalIgnoreCase))
+            {
+                if (path.EndsWith(AtomicFile.TempExtension, StringComparison.OrdinalIgnoreCase)) continue;
+                if (!ArchiveName.IsMatch(Path.GetFileName(path)))
+                {
+                    skipped?.Add(new SkippedFile(path, "Not an archive file (for example a sync conflict copy)."));
+                    continue;
+                }
+                try
+                {
+                    foreach (var issue in ReadArchiveFile(path))
+                        if (issue != null && IssueId.IsValid(issue.Id) && !issues.ContainsKey(issue.Id)) issues[issue.Id] = issue;
+                }
+                catch (Exception ex)
+                {
+                    skipped?.Add(new SkippedFile(path, "Could not be read: " + ex.Message));
+                }
+            }
+            return issues.Values.ToList();
+        }
+
+        internal static List<Issue> ReadArchiveFile(string path) =>
+            File.Exists(path) ? MarkupJson.Deserialize<List<Issue>>(ReadShared(path)) ?? new List<Issue>() : new List<Issue>();
+
         /// <summary>One issue from <c>active/</c>, or null when it is not there.</summary>
         public Issue Load(string id)
         {
@@ -131,6 +180,7 @@ namespace Stickies.Core.Store
 
             Directory.CreateDirectory(Folder.ActiveDir);
             AtomicFile.WriteAllText(Folder.IssuePath(issue.Id), MarkupJson.Serialize(issue));
+            issue.IsArchived = false; // a saved archived issue (reopened, commented) is active again; the archive copy is ignored
             return SaveOutcome.Saved;
         }
 

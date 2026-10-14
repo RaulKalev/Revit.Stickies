@@ -33,6 +33,9 @@ namespace Stickies.Core.Store
 
         public string IssuePath(string id) => Path.Combine(ActiveDir, id + ".json");
 
+        /// <summary>The archive file for a month: archive/YYYY-MM.json.</summary>
+        public string ArchivePath(int year, int month) => Path.Combine(ArchiveDir, year.ToString("0000") + "-" + month.ToString("00") + ".json");
+
         /// <summary><c>_markup</c> next to the model file, or null when the model has no folder on disk.</summary>
         public static string NextToModel(string modelPath)
         {

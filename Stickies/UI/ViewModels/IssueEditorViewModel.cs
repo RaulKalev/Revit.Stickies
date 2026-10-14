@@ -142,6 +142,10 @@ namespace Stickies.UI.ViewModels
             ? (_original.Status == IssueStatus.Closed ? "Closed by " : "Resolved by ") + _original.ResolvedBy + " · " + Display.When(_original.ResolvedAt.Value, _clock())
             : null;
 
+        public string ArchivedText => _original.IsArchived
+            ? "Archived: done and unchanged for over a week. Reopening it or adding a comment brings it back to the active list."
+            : null;
+
         public string ViewText => _original.View == null ? null : _original.View.Name + " · " + Display.ViewType(_original.View.Type);
         public string ElementText => _original.Location?.ElementCategory;
 

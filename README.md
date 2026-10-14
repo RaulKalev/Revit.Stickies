@@ -25,11 +25,12 @@ never end up on a client drawing.
 
 Stickies works with **Revit 2024** and **Revit 2026** on Windows.
 
-1. Build `Stickies.dll` for your Revit version (see *For developers* below). A ready-made download will follow.
-2. Copy `Deploy/Stickies2024.addin` (or `Stickies2026.addin`) to
-   `%AppData%\Autodesk\Revit\Addins\2024\` (or `...\2026\`).
-3. Open the `.addin` file in Notepad and change the `<Assembly>` line to where you put `Stickies.dll`.
-4. Start Revit. Stickies is on the **RK Tools** tab.
+1. Get the `Stickies-<version>.zip` package and unzip it.
+2. Close Revit and double-click **Install.cmd**. It sets up Stickies for every supported Revit version on the computer,
+   for your Windows user only (no administrator rights needed).
+3. Start Revit. Stickies is on the **RK Tools** tab.
+
+To remove it, double-click **Uninstall.cmd**. To update, install the new package the same way.
 
 ## Getting started
 
@@ -118,18 +119,34 @@ P123 School/            the project's Dropbox folder, next to the model
   _markup/
     project.json        which model these notes belong to
     active/             one small file per note
-    archive/            older closed notes
+    archive/            done notes, one file per month (2026-10.json, ...)
 ```
 
 Each note is a plain JSON file, so the folder can be backed up, synced or read by other tools.
 
+**Tidying up.** Once a note is resolved or closed and nobody has touched it for a week, Stickies moves it from
+`active/` into that month's archive file. That keeps the active folder small. Archived notes still show in the list
+(under **Resolved**, **Closed** and **All**). Reopening one, or adding a comment, brings it back.
+
+**Sync conflicts.** When two people change the same file before Dropbox has synced, Dropbox keeps both and names one
+*"conflicted copy"*. Stickies never loads those copies. It tells you at the bottom of the pane, and **Open folder**
+takes you there to compare or delete them.
+
+## Keyboard shortcuts
+
+While the Stickies pane has focus:
+
+| Keys | Does |
+| --- | --- |
+| Ctrl+F | Search |
+| Enter | Open the selected note's view |
+| Ctrl+Enter | Save the open note, or post the comment you are typing |
+| Esc | Close the open note, discard a new one, or clear the search |
+| F5 | Reload the notes |
+
 ## Status
 
-Stickies is in early development. Planned next:
-- Closed notes are tidied into monthly archive files automatically.
-- Dropbox "conflicted copy" files are reported.
-- Keyboard shortcuts.
-- An installer.
+Stickies is in early development: the first version for daily use by the team.
 
 ---
 
@@ -145,5 +162,7 @@ dotnet test Tests/Stickies.Core.Tests -c Release
   to use `bin\` instead.
 - `Stickies.Core` holds the data format and rules, with no Revit dependency. It is unit tested.
 - `Tests/UiHarness` runs the real pane outside Revit and writes screenshots to `Tests/UiHarness/out/`.
+- `Tools/Build-Release.ps1` builds both versions and packs `artifacts/Stickies-<version>.zip` with the installer
+  (`Deploy/Install.cmd`, `Uninstall.cmd`, `Install-Stickies.ps1`).
 - Hot reload (ricaun AppLoader) works for everything except `Stickies/Shell/PaneShell.cs`, which needs a Revit
   restart.

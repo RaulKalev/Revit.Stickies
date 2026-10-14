@@ -44,6 +44,9 @@ namespace Stickies.Core.Models
 
         /// <summary>Resolved and closed issues are the only ones the compactor moves to the archive.</summary>
         [JsonIgnore] public bool IsDone => Status == IssueStatus.Resolved || Status == IssueStatus.Closed;
+
+        /// <summary>Read from an archive file (set when loading, never stored). Saving it again puts it back in active/.</summary>
+        [JsonIgnore] public bool IsArchived { get; set; }
     }
 
     public class IssueLocation
