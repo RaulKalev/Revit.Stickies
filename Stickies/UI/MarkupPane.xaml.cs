@@ -108,7 +108,7 @@ namespace Stickies.UI
             var cards = _overlay.ShowCards;
             CardsButton.IsChecked = cards;
             CardsIcon.Kind = cards ? PackIconKind.NoteTextOutline : PackIconKind.NoteOutline;
-            CardsButton.ToolTip = !cards ? "Show each issue as a sticky-note card in the view it was created in"
+            CardsButton.ToolTip = !cards ? "Show every issue as a sticky-note card in the view it was created in (clicking a marker always shows its card)"
                 : on ? "Cards are shown in each issue's own view (click to hide)"
                 : "Cards are on, but show only while markers are shown";
         }

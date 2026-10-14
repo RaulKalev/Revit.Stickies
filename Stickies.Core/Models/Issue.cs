@@ -75,7 +75,9 @@ namespace Stickies.Core.Models
         /// <summary>3D views only, else null.</summary>
         public ViewOrientation Orientation { get; set; }
 
-        /// <summary>2D views: the two corners of UIView.GetZoomCorners(), [[x, y, z], [x, y, z]] in metres.</summary>
+        /// <summary>
+        /// 2D and orthographic 3D views: the two corners of UIView.GetZoomCorners(), [[x, y, z], [x, y, z]] in metres.
+        /// </summary>
         public double[][] ZoomCorners { get; set; }
     }
 

@@ -141,7 +141,9 @@ namespace Stickies.Revit
                 var o = view3D.GetOrientation();
                 captured.Orientation = new ViewOrientation { Eye = M(o.EyePosition), Forward = D(o.ForwardDirection), Up = D(o.UpDirection) };
             }
-            else
+
+            // The zoom: 2D views, and orthographic 3D views (a perspective camera's zoom is its eye position).
+            if (!(view is View3D v3) || !v3.IsPerspective)
             {
                 var corners = UiViewOf(uidoc, view)?.GetZoomCorners();
                 if (corners != null && corners.Count == 2) captured.ZoomCorners = new[] { M(corners[0]), M(corners[1]) };
@@ -182,7 +184,9 @@ namespace Stickies.Revit
 
             if (uidoc.ActiveView.Id != view.Id) uidoc.ActiveView = view;
 
-            if (view is View3D view3D && (saved.SectionBox != null || saved.Orientation != null))
+            // An issue made in a 3D view: the section box exactly as it was (on with the saved box, or off when there was
+            // none) and the camera angle, in one undoable change.
+            if (view is View3D view3D && saved.Orientation != null)
             {
                 using (var t = new Transaction(doc, "Stickies: restore issue view"))
                 {
@@ -194,12 +198,15 @@ namespace Stickies.Revit
                             view3D.IsSectionBoxActive = true;
                             view3D.SetSectionBox(ToBox(saved.SectionBox));
                         }
-                        if (saved.Orientation != null)
+                        else if (view3D.IsSectionBoxActive)
                         {
-                            if (view3D.IsLocked) notes.Add("The 3D view is locked, so its camera was not restored.");
-                            else view3D.SetOrientation(new ViewOrientation3D(Ft(saved.Orientation.Eye), Dir(saved.Orientation.Up), Dir(saved.Orientation.Forward)));
+                            view3D.IsSectionBoxActive = false;
                         }
+
+                        if (view3D.IsLocked) notes.Add("The 3D view is locked, so its camera was not restored.");
+                        else view3D.SetOrientation(new ViewOrientation3D(Ft(saved.Orientation.Eye), Dir(saved.Orientation.Up), Dir(saved.Orientation.Forward)));
                         t.Commit();
+                        uidoc.RefreshActiveView();
                     }
                     catch (Exception ex)
                     {
@@ -209,11 +216,17 @@ namespace Stickies.Revit
                     }
                 }
             }
-            else if (saved.ZoomCorners != null && saved.ZoomCorners.Length == 2)
+
+            // Then the zoom (2D views, and orthographic 3D views once the camera is back).
+            if (saved.ZoomCorners != null && saved.ZoomCorners.Length == 2)
             {
                 try { UiViewOf(uidoc, view)?.ZoomAndCenterRectangle(Ft(saved.ZoomCorners[0]), Ft(saved.ZoomCorners[1])); }
                 catch (Exception ex) { AppLog.Warn("Zoom failed: " + ex.Message); }
             }
+
+            AppLog.Info("Opened the view of issue " + issue.Number + " (" + view.Name + ")" +
+                        (saved.SectionBox != null ? ", section box restored" : view is View3D ? ", no section box" : "") +
+                        (saved.Orientation != null ? ", camera restored" : "") + (saved.ZoomCorners != null ? ", zoom restored" : "") + ".");
 
             return new OpenViewResult { Opened = true, Target = target, Message = notes.Count == 0 ? null : string.Join(" ", notes) };
         }

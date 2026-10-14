@@ -49,7 +49,8 @@ example a cloud model), choose the project's shared folder yourself. Stickies re
 3. Click the spot in the view, or select the element first if the note is about one element.
 4. Give it a title, and if you like some details, a priority and who should look at it. Then click **Add issue**.
 
-Stickies remembers the view as you saw it: its zoom, and for 3D views the section box and camera angle. Anyone who
+Stickies remembers the view as you saw it: its zoom, and for 3D views the camera angle and the section box (or that
+there was none). Anyone who
 **double-clicks** the note later gets exactly that view back.
 
 <img src="docs/images/new-issue.png" width="300" alt="Adding a new issue">
@@ -77,8 +78,8 @@ on the ribbon or in the pane to hide or show them.
 
 ### Notes as cards
 
-Turn on **Cards** (the note button at the top of the pane) to also see each note as a sticky-note card next to its
-marker, with its title, the start of its details and who it is assigned to. Cards show only in the view the note was
+Clicking a marker shows its note as a sticky-note card next to it. Turn on **Cards** (the note button at the top of
+the pane) to see every note's card at once, next to its marker, with its title, the start of its details and who it is assigned to. Cards show only in the view the note was
 made in, and only while markers are on. Click a card to open its note, double-click it to jump to its view. Like the markers, cards are never printed or
 exported.
 

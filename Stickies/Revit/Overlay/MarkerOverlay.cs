@@ -61,7 +61,7 @@ namespace Stickies.Revit.Overlay
             c.FileExporting += OnOutputStarting;
             c.FileExported += OnOutputFinished;
             _hook = new MouseHook((x, y) => HitAt(x, y) != null, OnClick);
-            _cards = new CardOverlay(BuildCardFrame, app.MainWindowHandle) { Enabled = overlay.IsVisible && overlay.ShowCards };
+            _cards = new CardOverlay(BuildCardFrame, app.MainWindowHandle) { Enabled = overlay.IsVisible };
         }
 
         public event Action<string> MarkerClicked;
@@ -123,7 +123,7 @@ namespace Stickies.Revit.Overlay
         private void OnOverlayChanged(object sender, EventArgs e)
         {
             _server.Visible = _overlay.IsVisible;
-            _cards.Enabled = _overlay.IsVisible && _overlay.ShowCards;
+            _cards.Enabled = _overlay.IsVisible;
             _requests.Post(Redraw);
         }
 
@@ -316,7 +316,8 @@ namespace Stickies.Revit.Overlay
         private bool _preferMapping, _loggedCardCheck;
 
         /// <summary>
-        /// The cards for the active view: only the issues created in that view, at their markers' screen positions.
+        /// The cards for the active view: only the issues created in that view, at their markers' screen positions. With the
+        /// Cards setting every issue's card shows; without it only the open issue's (clicking a marker opens its card).
         /// Positions come from the marker drawing (they follow pan and zoom); for plans, sections and orthographic 3D
         /// they are checked once against Revit's zoom corners, and the corners win if the two disagree.
         /// </summary>
@@ -332,6 +333,7 @@ namespace Stickies.Revit.Overlay
             foreach (var m in markers)
             {
                 if (m.Info == null || m.Info.ViewUniqueId != active.UniqueId) continue; // only in the issue's own view
+                if (!_overlay.ShowCards && !m.Info.IsSelected) continue; // without the Cards setting: just the open issue's card
 
                 double? mx = null, my = null;
                 if (mapping != null && mapping.TryToScreen(m.PointFeet, out var ax, out var ay)) { mx = ax; my = ay; }
