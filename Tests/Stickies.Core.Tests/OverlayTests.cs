@@ -70,6 +70,15 @@ namespace Stickies.Core.Tests
         }
 
         [Fact]
+        public void Only_issues_created_in_3d_show_beyond_their_own_view()
+        {
+            Assert.True(new MarkerInfo("a", 1, null, "v", IssueStatus.Open, false, viewType: "ThreeD").ShowsBeyondOwnView);
+            Assert.False(new MarkerInfo("b", 2, null, "v", IssueStatus.Open, false, viewType: "FloorPlan").ShowsBeyondOwnView);
+            Assert.False(new MarkerInfo("c", 3, null, "v", IssueStatus.Open, false, viewType: "Section").ShowsBeyondOwnView);
+            Assert.False(new MarkerInfo("d", 4, null, "v", IssueStatus.Open, false).ShowsBeyondOwnView);
+        }
+
+        [Fact]
         public void Selected_marker_has_a_white_ring()
         {
             var mesh = new MarkerMesh();

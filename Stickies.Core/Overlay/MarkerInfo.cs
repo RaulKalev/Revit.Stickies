@@ -6,8 +6,10 @@ namespace Stickies.Core.Overlay
     public sealed class MarkerInfo
     {
         public MarkerInfo(string issueId, int? number, double[] pointMetres, string viewUniqueId, IssueStatus status, bool isSelected,
-            string title = null, string body = null, string assignee = null, IssuePriority priority = IssuePriority.Normal)
+            string title = null, string body = null, string assignee = null, IssuePriority priority = IssuePriority.Normal,
+            string viewType = null)
         {
+            ViewType = viewType;
             Title = title;
             Body = body;
             Assignee = assignee;
@@ -28,6 +30,15 @@ namespace Stickies.Core.Overlay
 
         /// <summary>The view the issue was created in: its marker always shows there.</summary>
         public string ViewUniqueId { get; }
+
+        /// <summary>Type of that view (Revit ViewType name, "ThreeD" for 3D views).</summary>
+        public string ViewType { get; }
+
+        /// <summary>
+        /// Markers show only in the view their issue was created in, except issues created in a 3D view: those also show
+        /// in any other view that shows their point.
+        /// </summary>
+        public bool ShowsBeyondOwnView => ViewType == "ThreeD";
 
         public IssueStatus Status { get; }
         public bool IsSelected { get; }

@@ -68,7 +68,8 @@ Each note appears in the view as a numbered marker, in the colour of its status:
 progress, green for resolved, grey for closed. The note you have open gets a white ring. Click a marker to open its
 note in the pane.
 
-Markers show in the view where the note was made, and in any other view that shows that spot. Use the **eye** button
+Markers show in the view where the note was made. Notes made in a 3D view also show in any other view that shows
+their spot. Use the **eye** button
 on the ribbon or in the pane to hide or show them.
 
 <img src="docs/images/markers.png" width="620" alt="Numbered markers in their status colours">

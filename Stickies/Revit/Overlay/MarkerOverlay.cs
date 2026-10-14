@@ -18,9 +18,9 @@ namespace Stickies.Revit.Overlay
     /// <summary>
     /// Puts the pane's markers on Revit views. On Revit's main thread (API context) it works out which markers each open
     /// view shows and where each view sits on screen, and hands an immutable snapshot to <see cref="MarkerServer"/>,
-    /// which draws it. A marker shows in the view its issue was created in, and in other views that show its point:
-    /// 3D views (inside the section box), plans (inside the view range and crop) and sections/elevations (inside the crop
-    /// box). Clicking a marker in a plan, section, elevation or orthographic 3D view selects its issue in the pane.
+    /// which draws it. A marker shows in the view its issue was created in. Issues created in a 3D view also show in other views
+    /// that show their point: 3D views (inside the section box), plans (inside the view range and crop) and
+    /// sections/elevations (inside the crop box). Clicking a marker in a plan, section, elevation or orthographic 3D view selects its issue in the pane.
     ///
     /// Printing and exporting never draw markers: DirectContext3D graphics are not part of the model, and drawing is
     /// also switched off from the start to the end of every print and export, in case a print path renders views.
@@ -202,6 +202,7 @@ namespace Stickies.Revit.Overlay
         {
             if (view.IsTemplate) return false;
             if (!string.IsNullOrEmpty(marker.ViewUniqueId) && marker.ViewUniqueId == view.UniqueId) return true;
+            if (!marker.ShowsBeyondOwnView) return false; // only issues created in a 3D view show elsewhere
 
             switch (view)
             {
