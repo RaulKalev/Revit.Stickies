@@ -57,6 +57,7 @@ namespace Stickies
             _requests = new RevitRequests(); // ExternalEvent: must be created here, in API context
             _markers = new Revit.Overlay.MarkerOverlay(application, _requests, Overlay); // registers the DirectContext3D server
             _pane = new MarkupPane(Overlay, _session, new RevitHost(_requests), _markers);
+            _markers.MarkerClicked += OnMarkerClicked;
             if (!PaneShell.Attach(_pane)) AppLog.Info("The docked Stickies pane is not available in this session; the panel opens in a window.");
 
             Overlay.Changed += OnOverlayChanged;
@@ -77,6 +78,7 @@ namespace Stickies
             _tracker = null;
             _session?.Dispose();
             _session = null;
+            if (_markers != null) _markers.MarkerClicked -= OnMarkerClicked;
             _markers?.Dispose();
             _markers = null;
             _requests?.Dispose();
@@ -109,7 +111,23 @@ namespace Stickies
                 CloseWindow(reattach: true);
                 return;
             }
+            OpenWindow(app, activate: true);
+        }
 
+        /// <summary>Makes sure the panel is visible (a click on a marker or card opens its issue there).</summary>
+        internal void ShowPanel(UIApplication app)
+        {
+            if (_window != null) return; // already open as a window
+            if (PaneShell.TryGetPane(app, out var pane))
+            {
+                if (!pane.IsShown()) pane.Show();
+                return;
+            }
+            OpenWindow(app, activate: false);
+        }
+
+        private void OpenWindow(UIApplication app, bool activate)
+        {
             PaneShell.Detach(_pane);
             _window = new PaneWindow(_pane, app.MainWindowHandle);
             _window.Closed += (s, e) =>
@@ -119,8 +137,11 @@ namespace Stickies
                 _window = null;
                 PaneShell.Attach(closed.Release());
             };
+            _window.ShowActivated = activate; // from a marker click, Revit's view keeps the focus
             _window.Show(); // modeless
         }
+
+        private void OnMarkerClicked(string issueId) => _requests?.Post(ShowPanel);
 
         private void CloseWindow(bool reattach)
         {

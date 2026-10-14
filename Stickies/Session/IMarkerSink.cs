@@ -13,7 +13,10 @@ namespace Stickies.Session
         /// <summary>Replaces the markers to draw. Called on the UI thread.</summary>
         void Publish(IReadOnlyList<MarkerInfo> markers);
 
-        /// <summary>A marker was clicked in a view (issue id). Raised on the UI thread.</summary>
+        /// <summary>A marker or card was clicked in a view (issue id). Raised on the UI thread.</summary>
         event Action<string> MarkerClicked;
+
+        /// <summary>A marker or card was double-clicked (raised after <see cref="MarkerClicked"/>). UI thread.</summary>
+        event Action<string> MarkerDoubleClicked;
     }
 }

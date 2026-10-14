@@ -66,6 +66,7 @@ namespace Stickies.Revit
                 const string prompt = "Stickies: click the spot for the new issue (Esc cancels).";
                 try
                 {
+                    PickState.Active = true;
                     if (view.SketchPlane != null && !(view is View3D))
                     {
                         point = uidoc.Selection.PickPoint(prompt);
@@ -80,6 +81,10 @@ namespace Stickies.Revit
                 catch (RevitOperationCanceled)
                 {
                     return new CaptureResult(); // cancelled by the user: no error to show
+                }
+                finally
+                {
+                    PickState.Active = false;
                 }
             }
 

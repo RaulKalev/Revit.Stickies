@@ -60,11 +60,13 @@ namespace Stickies.Revit.Overlay
             c.DocumentPrinted += OnOutputFinished;
             c.FileExporting += OnOutputStarting;
             c.FileExported += OnOutputFinished;
-            _hook = new MouseHook(OnClick);
+            _hook = new MouseHook((x, y) => HitAt(x, y) != null, OnClick);
             _cards = new CardOverlay(BuildCardFrame, app.MainWindowHandle) { Enabled = overlay.IsVisible && overlay.ShowCards };
         }
 
         public event Action<string> MarkerClicked;
+
+        public event Action<string> MarkerDoubleClicked;
 
         // ------------------------------------------------------------------ registration
 
@@ -369,26 +371,47 @@ namespace Stickies.Revit.Overlay
 
         // ------------------------------------------------------------------ clicks
 
-        /// <summary>From the mouse hook (UI thread, not API context): uses only the cached snapshots.</summary>
-        private void OnClick(int x, int y)
+        private string _lastClickedId;
+        private int _lastClickTick;
+
+        /// <summary>
+        /// The issue whose card or marker is at a screen point, or null. Called from the mouse hook (UI thread, not API
+        /// context), so it uses only the cached snapshots. Nothing is a target while the user picks a spot for a new
+        /// issue, so that pick is never taken away.
+        /// </summary>
+        private string HitAt(int x, int y)
         {
-            if (!_server.Visible || MarkerClicked == null) return;
+            if (!_server.Visible || PickState.Active) return null;
             var card = _cards.HitTest(x, y);
-            if (card != null)
-            {
-                _dispatcher.BeginInvoke(new Action(() => MarkerClicked?.Invoke(card)));
-                return;
-            }
+            if (card != null) return card;
             var scenes = _server.Scenes;
             foreach (var mapping in _mappings)
             {
                 if (!mapping.Contains(x, y) || !scenes.TryGetValue(mapping.ViewId, out var markers)) continue;
-                var hit = MarkerPicker.Hit(mapping,
+                return MarkerPicker.Hit(mapping,
                     markers.Select(m => new PickCandidate(m.IssueId, m.PointFeet, MarkerMesh.RadiusFor(m.Number, m.Selected))), x, y);
-                if (hit != null) _dispatcher.BeginInvoke(new Action(() => MarkerClicked?.Invoke(hit)));
-                return;
             }
+            return null;
         }
+
+        /// <summary>A click on a marker or card: a second click on the same one within the double-click time is a double click.</summary>
+        private void OnClick(int x, int y)
+        {
+            var hit = HitAt(x, y);
+            if (hit == null) return;
+            var now = Environment.TickCount;
+            var isDouble = hit == _lastClickedId && unchecked(now - _lastClickTick) <= GetDoubleClickTime();
+            _lastClickedId = isDouble ? null : hit;
+            _lastClickTick = now;
+            _dispatcher.BeginInvoke(new Action(() =>
+            {
+                MarkerClicked?.Invoke(hit);
+                if (isDouble) MarkerDoubleClicked?.Invoke(hit);
+            }));
+        }
+
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern int GetDoubleClickTime();
 
         // ------------------------------------------------------------------ helpers
 

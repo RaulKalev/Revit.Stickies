@@ -63,7 +63,11 @@ namespace Stickies.UI.ViewModels
 
             Session.PropertyChanged += OnSessionPropertyChanged;
             Session.IssuesChanged += (s, e) => RebuildRows(checkTargets: true);
-            if (_markers != null) _markers.MarkerClicked += SelectIssue;
+            if (_markers != null)
+            {
+                _markers.MarkerClicked += SelectIssue;
+                _markers.MarkerDoubleClicked += OpenIssueView;
+            }
             LoadSettings();
         }
 
@@ -180,6 +184,13 @@ namespace Stickies.UI.ViewModels
             var row = Rows.FirstOrDefault(r => r.Id == id);
             if (row == null || (_editor != null && _editor.IsNew)) return;
             Selected = row;
+        }
+
+        /// <summary>A marker was double-clicked: open its view as it was when the issue was added.</summary>
+        public void OpenIssueView(string id)
+        {
+            var row = Rows.FirstOrDefault(r => r.Id == id);
+            if (row != null && (_editor == null || !_editor.IsNew)) OpenView(row);
         }
 
         public void OpenView(IssueRowViewModel row)

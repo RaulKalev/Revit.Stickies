@@ -17,6 +17,7 @@ namespace Stickies.UiHarness
         public int PublishCount { get; private set; }
 
         public event Action<string> MarkerClicked;
+        public event Action<string> MarkerDoubleClicked;
 
         public void Publish(IReadOnlyList<MarkerInfo> markers)
         {
@@ -25,6 +26,13 @@ namespace Stickies.UiHarness
         }
 
         public void Click(string issueId) => MarkerClicked?.Invoke(issueId);
+
+        /// <summary>Like Revit: the first click, then the double click.</summary>
+        public void DoubleClick(string issueId)
+        {
+            MarkerClicked?.Invoke(issueId);
+            MarkerDoubleClicked?.Invoke(issueId);
+        }
 
         /// <summary>Markers with their sticky-note cards, laid out as the card overlay does (card up and right of the marker).</summary>
         public static BitmapSource PreviewWithCards()

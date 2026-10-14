@@ -164,6 +164,9 @@ namespace Stickies.UiHarness
             Pump();
             Check(vm.Selected?.Id == gone.Id && vm.Editor?.Id == gone.Id, "clicking a marker selects its issue");
             Check(markers.Last.Single(m => m.IsSelected).IssueId == gone.Id, "the clicked issue's marker is highlighted");
+            var openedBefore = host.Opened.Count;
+            markers.DoubleClick(first);
+            Check(WaitFor(() => host.Opened.Count == openedBefore + 1 && host.Opened.Last() == first) && vm.Selected?.Id == first, "double-clicking a marker opens its issue and its saved view");
             var numbered = colleague.Load(closed.Id);
             numbered.Number = 41;
             numbered.Modified = numbered.Modified.AddSeconds(1);

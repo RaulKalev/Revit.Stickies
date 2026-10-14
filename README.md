@@ -65,8 +65,9 @@ Stickies remembers the view as you saw it: its zoom, and for 3D views the sectio
 ## Markers on views
 
 Each note appears in the view as a numbered marker, in the colour of its status: blue for open, orange for in
-progress, green for resolved, grey for closed. The note you have open gets a white ring. Click a marker to open its
-note in the pane.
+progress, green for resolved, grey for closed. The note you have open gets a white ring. **Click** a marker to open
+its note in the Stickies panel (the panel opens if it was closed); **double-click** it to jump to the view exactly as
+it was when the note was made.
 
 Markers show in the view where the note was made. Notes made in a 3D view also show in any other view that shows
 their spot. Use the **eye** button
@@ -78,7 +79,7 @@ on the ribbon or in the pane to hide or show them.
 
 Turn on **Cards** (the note button at the top of the pane) to also see each note as a sticky-note card next to its
 marker, with its title, the start of its details and who it is assigned to. Cards show only in the view the note was
-made in, and only while markers are on. Click a card to open its note. Like the markers, cards are never printed or
+made in, and only while markers are on. Click a card to open its note, double-click it to jump to its view. Like the markers, cards are never printed or
 exported.
 
 <img src="docs/images/cards.png" width="620" alt="Sticky-note cards next to their markers">
