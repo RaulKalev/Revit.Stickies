@@ -26,6 +26,69 @@ namespace Stickies.UiHarness
 
         public void Click(string issueId) => MarkerClicked?.Invoke(issueId);
 
+        /// <summary>Markers with their sticky-note cards, laid out as the card overlay does (card up and right of the marker).</summary>
+        public static BitmapSource PreviewWithCards()
+        {
+            const int w = 720, h = 330;
+            var notes = new[]
+            {
+                new MarkerInfo("a", 3, null, "v", IssueStatus.Open, false, "Camera too close to door", "Move VVS-03 at least 500 mm from the frame", "joonas", IssuePriority.High),
+                new MarkerInfo("b", 7, null, "v", IssueStatus.InProgress, true, "Missing card reader", "Staff entrance, outside the door", null),
+                new MarkerInfo("c", 12, null, "v", IssueStatus.Resolved, false, "Cable tray height clashes with the duct along the whole corridor on level 2", null, "raul", IssuePriority.Low)
+            };
+            var anchors = new[] { new Point(90, 230), new Point(330, 270), new Point(530, 180) };
+
+            var canvas = new System.Windows.Controls.Canvas { Width = w, Height = h, Background = new SolidColorBrush(Color.FromRgb(0x21, 0x24, 0x28)) };
+            var line = new SolidColorBrush(Color.FromRgb(0x9A, 0xA0, 0xA6));
+            canvas.Children.Add(new System.Windows.Shapes.Rectangle { Width = 680, Height = 290, Stroke = line, StrokeThickness = 2 });
+            System.Windows.Controls.Canvas.SetLeft(canvas.Children[0], 20);
+            System.Windows.Controls.Canvas.SetTop(canvas.Children[0], 20);
+
+            var visual = new DrawingVisual();
+            using (var dc = visual.RenderOpen())
+            {
+                var mesh = new MarkerMesh();
+                for (var i = 0; i < notes.Length; i++)
+                {
+                    var a = anchors[i];
+                    mesh.AddMarker(notes[i].Number, MarkerInfo.StatusColor(notes[i].Status), notes[i].IsSelected, (x, y, layer) => new V3(a.X + x, a.Y - y, layer));
+                }
+                foreach (var t in Enumerable.Range(0, mesh.TriangleCount).Select(t => new[] { mesh.Indices[3 * t], mesh.Indices[3 * t + 1], mesh.Indices[3 * t + 2] }).OrderBy(t => mesh.Vertices[t[0]].Position.Z))
+                {
+                    var v = mesh.Vertices[t[0]];
+                    var brush = new SolidColorBrush(Color.FromRgb(v.R, v.G, v.B));
+                    var g = new StreamGeometry();
+                    using (var s = g.Open())
+                    {
+                        s.BeginFigure(new Point(v.Position.X, v.Position.Y), true, true);
+                        s.LineTo(new Point(mesh.Vertices[t[1]].Position.X, mesh.Vertices[t[1]].Position.Y), false, false);
+                        s.LineTo(new Point(mesh.Vertices[t[2]].Position.X, mesh.Vertices[t[2]].Position.Y), false, false);
+                    }
+                    dc.DrawGeometry(brush, new Pen(brush, 0.6), g);
+                }
+            }
+            canvas.Children.Add(new System.Windows.Controls.Image { Source = new DrawingImage(visual.Drawing), Stretch = Stretch.None });
+            System.Windows.Controls.Canvas.SetLeft(canvas.Children[1], visual.Drawing.Bounds.Left);
+            System.Windows.Controls.Canvas.SetTop(canvas.Children[1], visual.Drawing.Bounds.Top);
+
+            for (var i = 0; i < notes.Length; i++)
+            {
+                var card = Stickies.UI.StickyCard.Build(notes[i]);
+                card.Measure(new Size(Stickies.UI.StickyCard.MaxCardWidth, double.PositiveInfinity));
+                var at = Stickies.UI.StickyCard.Place(anchors[i].X, anchors[i].Y, card.DesiredSize, w, h);
+                System.Windows.Controls.Canvas.SetLeft(card, at.X);
+                System.Windows.Controls.Canvas.SetTop(card, at.Y);
+                canvas.Children.Add(card);
+            }
+
+            canvas.Measure(new Size(w, h));
+            canvas.Arrange(new Rect(0, 0, w, h));
+            canvas.UpdateLayout();
+            var bitmap = new RenderTargetBitmap(w, h, 96, 96, PixelFormats.Pbgra32);
+            bitmap.Render(canvas);
+            return bitmap;
+        }
+
         /// <summary>
         /// Draws markers with the real <see cref="MarkerMesh"/> the way Revit gets them (triangles, painter's order by
         /// layer) over a plan-like background, so their look can be checked without Revit.

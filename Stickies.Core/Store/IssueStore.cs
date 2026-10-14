@@ -136,12 +136,29 @@ namespace Stickies.Core.Store
 
         private static Issue Read(string path) => MarkupJson.Deserialize<Issue>(ReadShared(path));
 
-        /// <summary>Reads while a sync client may hold the file open.</summary>
+        /// <summary>
+        /// Reads while a sync client may hold the file open. A file being swapped in by an atomic write (or locked by
+        /// Dropbox) refuses access for a moment, so the read is retried briefly before giving up.
+        /// </summary>
         private static string ReadShared(string path)
         {
-            using (var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
-            using (var reader = new StreamReader(stream))
-                return reader.ReadToEnd();
+            for (var attempt = 1; ; attempt++)
+            {
+                try
+                {
+                    using (var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
+                    using (var reader = new StreamReader(stream))
+                        return reader.ReadToEnd();
+                }
+                catch (IOException) when (attempt < 6 && File.Exists(path))
+                {
+                    System.Threading.Thread.Sleep(40 * attempt);
+                }
+                catch (UnauthorizedAccessException) when (attempt < 6)
+                {
+                    System.Threading.Thread.Sleep(40 * attempt);
+                }
+            }
         }
     }
 }

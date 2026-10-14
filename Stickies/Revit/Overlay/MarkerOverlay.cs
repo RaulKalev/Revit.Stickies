@@ -35,6 +35,7 @@ namespace Stickies.Revit.Overlay
         private readonly Dispatcher _dispatcher;
         private readonly MarkerServer _server = new MarkerServer();
         private readonly MouseHook _hook;
+        private readonly CardOverlay _cards;
         private bool _registered, _dirty = true;
         private string _lastSummary;
 
@@ -60,6 +61,7 @@ namespace Stickies.Revit.Overlay
             c.FileExporting += OnOutputStarting;
             c.FileExported += OnOutputFinished;
             _hook = new MouseHook(OnClick);
+            _cards = new CardOverlay(BuildCardFrame, app.MainWindowHandle) { Enabled = overlay.IsVisible && overlay.ShowCards };
         }
 
         public event Action<string> MarkerClicked;
@@ -119,6 +121,7 @@ namespace Stickies.Revit.Overlay
         private void OnOverlayChanged(object sender, EventArgs e)
         {
             _server.Visible = _overlay.IsVisible;
+            _cards.Enabled = _overlay.IsVisible && _overlay.ShowCards;
             _requests.Post(Redraw);
         }
 
@@ -173,7 +176,7 @@ namespace Stickies.Revit.Overlay
                     {
                         var p = Feet(m.PointMetres);
                         if (!ShowsIn(doc, view, m, p)) continue;
-                        placed.Add(new PlacedMarker(m.IssueId, m.Number, new V3(p.X, p.Y, p.Z), MarkerInfo.StatusColor(m.Status), m.IsSelected));
+                        placed.Add(new PlacedMarker(m.IssueId, m.Number, new V3(p.X, p.Y, p.Z), MarkerInfo.StatusColor(m.Status), m.IsSelected, m));
                     }
                     // Selected last, so it is drawn over its neighbours.
                     scenes[view.Id.Value] = placed.OrderBy(x => x.Selected).ToList();
@@ -254,19 +257,27 @@ namespace Stickies.Revit.Overlay
 
         // ------------------------------------------------------------------ clicks
 
-        /// <summary>Where each open parallel-projection view sits on screen, for matching clicks to markers.</summary>
+        /// <summary>
+        /// Where each open view sits on screen: window rectangles (for the cards) and, for parallel projections, the
+        /// model-to-screen mapping (for clicks). Also notes the active view, the one cards are shown over.
+        /// </summary>
         private void UpdateMappings(UIDocument uidoc)
         {
             var mappings = new List<ViewMapping>();
+            var windows = new Dictionary<long, System.Drawing.Rectangle>();
+            ActiveViewInfo active = null;
             if (uidoc != null)
             {
+                var activeId = uidoc.ActiveGraphicalView?.Id;
                 foreach (var uiView in uidoc.GetOpenUIViews())
                 {
                     try
                     {
                         if (!(uidoc.Document.GetElement(uiView.ViewId) is View view)) continue;
-                        if (view is View3D v3 && v3.IsPerspective) continue;
                         var r = uiView.GetWindowRectangle();
+                        windows[view.Id.Value] = new System.Drawing.Rectangle(r.Left, r.Top, r.Right - r.Left, r.Bottom - r.Top);
+                        if (activeId != null && view.Id == activeId) active = new ActiveViewInfo(view.Id.Value, view.UniqueId);
+                        if (view is View3D v3 && v3.IsPerspective) continue;
                         var corners = uiView.GetZoomCorners();
                         if (corners == null || corners.Count < 2) continue;
                         mappings.Add(new ViewMapping(view.Id.Value, r.Left, r.Top, r.Right, r.Bottom,
@@ -279,12 +290,94 @@ namespace Stickies.Revit.Overlay
                 }
             }
             _mappings = mappings;
+            _windows = windows;
+            _active = active;
         }
+
+        // ------------------------------------------------------------------ cards
+
+        private sealed class ActiveViewInfo
+        {
+            public ActiveViewInfo(long id, string uniqueId)
+            {
+                Id = id;
+                UniqueId = uniqueId;
+            }
+
+            public long Id { get; }
+            public string UniqueId { get; }
+        }
+
+        private volatile IReadOnlyDictionary<long, System.Drawing.Rectangle> _windows = new Dictionary<long, System.Drawing.Rectangle>();
+        private volatile ActiveViewInfo _active;
+        private bool _preferMapping, _loggedCardCheck;
+
+        /// <summary>
+        /// The cards for the active view: only the issues created in that view, at their markers' screen positions.
+        /// Positions come from the marker drawing (they follow pan and zoom); for plans, sections and orthographic 3D
+        /// they are checked once against Revit's zoom corners, and the corners win if the two disagree.
+        /// </summary>
+        private CardFrame BuildCardFrame()
+        {
+            var active = _active;
+            if (active == null || !_windows.TryGetValue(active.Id, out var window)) return null;
+            if (!_server.Scenes.TryGetValue(active.Id, out var markers)) return null;
+            var projection = _server.ProjectionOf(active.Id);
+            var mapping = _mappings.FirstOrDefault(m => m.ViewId == active.Id);
+
+            var cards = new List<CardItem>();
+            foreach (var m in markers)
+            {
+                if (m.Info == null || m.Info.ViewUniqueId != active.UniqueId) continue; // only in the issue's own view
+
+                double? mx = null, my = null;
+                if (mapping != null && mapping.TryToScreen(m.PointFeet, out var ax, out var ay)) { mx = ax; my = ay; }
+
+                double x, y;
+                if (projection != null && !_preferMapping && projection.Points.TryGetValue(m.IssueId, out var p))
+                {
+                    var sx = projection.Width > 0 ? window.Width / projection.Width : 1;
+                    var sy = projection.Height > 0 ? window.Height / projection.Height : 1;
+                    x = window.Left + p.X * sx;
+                    y = window.Top + p.Y * sy;
+                    if (mx.HasValue && !_loggedCardCheck)
+                    {
+                        _loggedCardCheck = true;
+                        var off = Math.Sqrt((x - mx.Value) * (x - mx.Value) + (y - my.Value) * (y - my.Value));
+                        AppLog.Info("Cards: drawing position (" + x.ToString("0") + ", " + y.ToString("0") + ") vs zoom corners (" +
+                                    mx.Value.ToString("0") + ", " + my.Value.ToString("0") + "), " + off.ToString("0") + " px apart; view window " +
+                                    window + ", drawn area " + projection.Width + " x " + projection.Height);
+                        if (off > 24)
+                        {
+                            _preferMapping = true;
+                            AppLog.Warn("Cards: positions follow the zoom corners from now on (updated when Revit is idle).");
+                        }
+                    }
+                }
+                else if (mx.HasValue)
+                {
+                    x = mx.Value;
+                    y = my.Value;
+                }
+                else continue;
+
+                cards.Add(new CardItem(m.Info, x, y));
+            }
+            return new CardFrame(window.Left, window.Top, window.Width, window.Height, cards);
+        }
+
+        // ------------------------------------------------------------------ clicks
 
         /// <summary>From the mouse hook (UI thread, not API context): uses only the cached snapshots.</summary>
         private void OnClick(int x, int y)
         {
             if (!_server.Visible || MarkerClicked == null) return;
+            var card = _cards.HitTest(x, y);
+            if (card != null)
+            {
+                _dispatcher.BeginInvoke(new Action(() => MarkerClicked?.Invoke(card)));
+                return;
+            }
             var scenes = _server.Scenes;
             foreach (var mapping in _mappings)
             {
@@ -304,6 +397,7 @@ namespace Stickies.Revit.Overlay
         public void Dispose()
         {
             _hook.Dispose();
+            _cards.Dispose();
             _overlay.Changed -= OnOverlayChanged;
             _app.ViewActivated -= OnViewActivated;
             _app.Idling -= OnIdling;

@@ -167,7 +167,8 @@ namespace Stickies.UI.ViewModels
             var openId = _editor?.Id;
             var markers = Session.IsConnected
                 ? Rows.Where(r => r.Issue.Location?.Point != null && r.Issue.Location.Point.Length == 3)
-                      .Select(r => new MarkerInfo(r.Id, r.Issue.Number, r.Issue.Location.Point, r.Issue.View?.UniqueId, r.Status, r.Id == openId))
+                      .Select(r => new MarkerInfo(r.Id, r.Issue.Number, r.Issue.Location.Point, r.Issue.View?.UniqueId, r.Status, r.Id == openId,
+                          r.Issue.Title, r.Issue.Body, r.Issue.Assignee, r.Issue.Priority))
                       .ToList()
                 : new List<MarkerInfo>();
             _markers.Publish(markers);

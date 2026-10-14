@@ -233,7 +233,11 @@ namespace Stickies.Session
         private void ApplyOverlaySetting()
         {
             _applyingSettings = true;
-            try { _overlay.IsVisible = _settings.OverlayVisible; }
+            try
+            {
+                _overlay.IsVisible = _settings.OverlayVisible;
+                _overlay.ShowCards = _settings.ShowCards;
+            }
             finally { _applyingSettings = false; }
         }
 
@@ -241,6 +245,7 @@ namespace Stickies.Session
         {
             if (_applyingSettings || _settings == null) return;
             _settings.OverlayVisible = _overlay.IsVisible;
+            _settings.ShowCards = _overlay.ShowCards;
             SaveSettings();
         }
 

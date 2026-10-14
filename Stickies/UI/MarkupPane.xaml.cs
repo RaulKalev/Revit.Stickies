@@ -104,6 +104,13 @@ namespace Stickies.UI
             MarkersButton.IsChecked = on;
             MarkersIcon.Kind = on ? PackIconKind.EyeOutline : PackIconKind.EyeOffOutline;
             MarkersButton.ToolTip = on ? "Markers are shown on views (click to hide)" : "Markers are hidden (click to show on views)";
+
+            var cards = _overlay.ShowCards;
+            CardsButton.IsChecked = cards;
+            CardsIcon.Kind = cards ? PackIconKind.NoteTextOutline : PackIconKind.NoteOutline;
+            CardsButton.ToolTip = !cards ? "Show each issue as a sticky-note card in the view it was created in"
+                : on ? "Cards are shown in each issue's own view (click to hide)"
+                : "Cards are on, but show only while markers are shown";
         }
 
         private void UpdateThemeButton()
@@ -113,6 +120,8 @@ namespace Stickies.UI
         }
 
         private void ToggleMarkers_Click(object sender, RoutedEventArgs e) => _overlay.Toggle();
+
+        private void ToggleCards_Click(object sender, RoutedEventArgs e) => _overlay.ToggleCards();
 
         private void ToggleTheme_Click(object sender, RoutedEventArgs e) => _theme.ToggleTheme();
 

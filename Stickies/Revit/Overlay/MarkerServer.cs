@@ -12,8 +12,9 @@ namespace Stickies.Revit.Overlay
     /// <summary>A marker as placed in one view: its point in feet and how it looks.</summary>
     internal sealed class PlacedMarker
     {
-        public PlacedMarker(string issueId, int? number, V3 pointFeet, byte[] rgb, bool selected)
+        public PlacedMarker(string issueId, int? number, V3 pointFeet, byte[] rgb, bool selected, MarkerInfo info = null)
         {
+            Info = info;
             IssueId = issueId;
             Number = number;
             PointFeet = pointFeet;
@@ -26,6 +27,36 @@ namespace Stickies.Revit.Overlay
         public V3 PointFeet { get; }
         public byte[] Rgb { get; }
         public bool Selected { get; }
+
+        /// <summary>The issue behind the marker (card text, the view it was created in).</summary>
+        public MarkerInfo Info { get; }
+    }
+
+    /// <summary>Where markers landed in a view's last drawing, in pixels of that view (y down).</summary>
+    internal sealed class ViewProjection
+    {
+        public ViewProjection(double width, double height, IReadOnlyDictionary<string, Point2> points)
+        {
+            Width = width;
+            Height = height;
+            Points = points;
+        }
+
+        public double Width { get; }
+        public double Height { get; }
+        public IReadOnlyDictionary<string, Point2> Points { get; }
+    }
+
+    internal struct Point2
+    {
+        public Point2(double x, double y)
+        {
+            X = x;
+            Y = y;
+        }
+
+        public double X { get; }
+        public double Y { get; }
     }
 
     /// <summary>
@@ -53,6 +84,11 @@ namespace Stickies.Revit.Overlay
         // Buffers handed to Revit stay alive for the last few frames.
         private readonly Queue<List<IDisposable>> _frames = new Queue<List<IDisposable>>();
         private readonly HashSet<string> _logged = new HashSet<string>();
+        private readonly System.Collections.Concurrent.ConcurrentDictionary<long, ViewProjection> _projections =
+            new System.Collections.Concurrent.ConcurrentDictionary<long, ViewProjection>();
+
+        /// <summary>Where the markers of a view landed when it was last drawn (null when it has not been drawn).</summary>
+        public ViewProjection ProjectionOf(long viewId) => _projections.TryGetValue(viewId, out var p) ? p : null;
         private readonly object _frameLock = new object();
 
         public bool Visible { get => _visible; set => _visible = value; }
@@ -133,12 +169,20 @@ namespace Stickies.Revit.Overlay
                                 " px wide => " + feetPerPixel + " ft/px; first marker at " + markers[0].PointFeet +
                                 " depth " + (markers[0].PointFeet - eye).Dot(dir));
 
+                var heightPx = Math.Abs((double)(rect.Bottom - rect.Top));
+                var points = new Dictionary<string, Point2>();
                 var meshes = new List<MarkerMesh> { new MarkerMesh() };
                 foreach (var m in markers)
                 {
                     var rel = m.PointFeet - eye;
                     var d = rel.Dot(dir);
                     if (perspective && d <= near) continue; // behind the camera
+
+                    // Screen position (pixels of this view, y down) for the sticky-note cards.
+                    var k = perspective ? targetDistance / d : 1;
+                    points[m.IssueId] = new Point2(
+                        widthPx / 2 + (rel.Dot(right) * k - camera.HorizontalOffset) / feetPerPixel,
+                        heightPx / 2 - (rel.Dot(up) * k - camera.VerticalOffset) / feetPerPixel);
 
                     // At the issue's own point, nudged toward the viewer so the surface it sits on does not cover it.
                     // (Revit clips overlay graphics to what the view shows, so the marker must stay near its point.)
@@ -157,6 +201,8 @@ namespace Stickies.Revit.Overlay
                     if (meshes[meshes.Count - 1].Vertices.Count > 60000) meshes.Add(new MarkerMesh()); // 16-bit indices
                     meshes[meshes.Count - 1].AddMarker(m.Number, m.Rgb, m.Selected, toWorld);
                 }
+
+                _projections[dBView.Id.Value] = new ViewProjection(widthPx, heightPx, points);
 
                 lock (_frameLock)
                 {

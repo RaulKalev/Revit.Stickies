@@ -73,6 +73,15 @@ on the ribbon or in the pane to hide or show them.
 
 <img src="docs/images/markers.png" width="620" alt="Numbered markers in their status colours">
 
+### Notes as cards
+
+Turn on **Cards** (the note button at the top of the pane) to also see each note as a sticky-note card next to its
+marker, with its title, the start of its details and who it is assigned to. Cards show only in the view the note was
+made in, and only while markers are on. Click a card to open its note. Like the markers, cards are never printed or
+exported.
+
+<img src="docs/images/cards.png" width="620" alt="Sticky-note cards next to their markers">
+
 ## Finding notes
 
 Search by any word in a note, its comments, the view name or a person. Switch between **Active**, **Resolved**,

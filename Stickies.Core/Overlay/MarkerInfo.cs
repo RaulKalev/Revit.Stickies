@@ -5,8 +5,13 @@ namespace Stickies.Core.Overlay
     /// <summary>One marker to draw: an issue that passes the user's current filter and has a location. Immutable.</summary>
     public sealed class MarkerInfo
     {
-        public MarkerInfo(string issueId, int? number, double[] pointMetres, string viewUniqueId, IssueStatus status, bool isSelected)
+        public MarkerInfo(string issueId, int? number, double[] pointMetres, string viewUniqueId, IssueStatus status, bool isSelected,
+            string title = null, string body = null, string assignee = null, IssuePriority priority = IssuePriority.Normal)
         {
+            Title = title;
+            Body = body;
+            Assignee = assignee;
+            Priority = priority;
             IssueId = issueId;
             Number = number;
             PointMetres = pointMetres;
@@ -26,6 +31,12 @@ namespace Stickies.Core.Overlay
 
         public IssueStatus Status { get; }
         public bool IsSelected { get; }
+
+        // Card text (sticky-note cards).
+        public string Title { get; }
+        public string Body { get; }
+        public string Assignee { get; }
+        public IssuePriority Priority { get; }
 
         /// <summary>Marker colour by status (RGB): open blue, in progress orange, resolved green, closed grey.</summary>
         public static byte[] StatusColor(IssueStatus status)

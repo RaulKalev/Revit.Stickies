@@ -126,6 +126,26 @@ namespace Stickies.Core.Tests
         }
 
         [Fact]
+        public void Reading_waits_for_a_briefly_locked_file()
+        {
+            using (var dir = new TempDir())
+            {
+                var store = new IssueStore(new MarkupFolder(dir.Path));
+                var issue = SerializationTests.FullIssue();
+                store.Save(issue);
+                var path = Path.Combine(dir.Path, "active", issue.Id + ".json");
+
+                using (var locked = new FileStream(path, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+                {
+                    var release = new Thread(() => { Thread.Sleep(150); locked.Dispose(); });
+                    release.Start();
+                    Assert.Equal(issue.Title, store.Load(issue.Id).Title); // succeeds once the lock goes
+                    release.Join();
+                }
+            }
+        }
+
+        [Fact]
         public void Atomic_write_replaces_and_leaves_no_temp_files()
         {
             using (var dir = new TempDir())

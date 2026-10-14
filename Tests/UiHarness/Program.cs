@@ -280,6 +280,14 @@ namespace Stickies.UiHarness
             overlay.Toggle();
             Check(!settingsStore.Load(model.ModelGuid).OverlayVisible, "marker visibility saved locally for the project");
             overlay.Toggle();
+            ((ToggleButton)pane.FindName("CardsButton")).RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
+            Check(overlay.ShowCards && settingsStore.Load(model.ModelGuid).ShowCards, "cards switched on from the pane and saved locally");
+            session.SetModel(null);
+            overlay.ShowCards = false;
+            session.SetModel(model);
+            Check(overlay.ShowCards, "cards setting restored for the project");
+            WaitFor(() => session.IssueCount == 5);
+            SaveImage(FakeMarkerSink.PreviewWithCards(), "17_cards_preview.png");
 
             var reloadedSession = new MarkupSession(dispatcher, overlay, settingsStore);
             var reloaded = new MarkupPane(overlay, reloadedSession, host, new FakeMarkerSink(), Me);

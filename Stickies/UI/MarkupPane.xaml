@@ -192,6 +192,20 @@
                         Kind="WeatherNight" />
                 </Button>
                 <ToggleButton
+                    x:Name="CardsButton"
+                    Margin="0,0,2,0"
+                    VerticalAlignment="Center"
+                    AutomationProperties.Name="Show issues as sticky-note cards"
+                    Click="ToggleCards_Click"
+                    DockPanel.Dock="Right"
+                    Style="{StaticResource Button.Icon}">
+                    <materialDesign:PackIcon
+                        x:Name="CardsIcon"
+                        Width="16"
+                        Height="16"
+                        Kind="NoteOutline" />
+                </ToggleButton>
+                <ToggleButton
                     x:Name="MarkersButton"
                     Margin="0,0,2,0"
                     VerticalAlignment="Center"

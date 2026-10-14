@@ -18,6 +18,9 @@ namespace Stickies.Core.Models
 
         public bool OverlayVisible { get; set; } = true;
 
+        /// <summary>Show each issue as a sticky-note card next to its marker (active view only).</summary>
+        public bool ShowCards { get; set; }
+
         public IssueFilter Filter { get; set; } = new IssueFilter();
 
         public IssueSort Sort { get; set; } = new IssueSort();
