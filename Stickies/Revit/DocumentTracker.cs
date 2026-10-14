@@ -91,7 +91,7 @@ namespace Stickies.Revit
             };
         }
 
-        /// <summary>The model file whose folder holds <c>_markup</c>: the central file for workshared models.</summary>
+        /// <summary>The model file whose folder holds <c>_stickies</c>: the central file for workshared models.</summary>
         private static string ModelFolderPath(Document doc)
         {
             string path = null;

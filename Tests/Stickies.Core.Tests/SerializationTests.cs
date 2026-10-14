@@ -121,7 +121,7 @@ namespace Stickies.Core.Tests
         {
             var settings = new LocalSettings
             {
-                MarkupFolder = @"D:\Dropbox\P123\_markup",
+                MarkupFolder = @"D:\Dropbox\P123\_stickies",
                 OverlayVisible = false,
                 Filter = new IssueFilter
                 {

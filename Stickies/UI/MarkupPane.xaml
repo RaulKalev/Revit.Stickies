@@ -240,11 +240,11 @@
                 <TextBlock Style="{StaticResource PaneMessageText}" Text="Review issues belong to project models. Switch to a project to see them." />
             </StackPanel>
 
-            <!--  No markup folder yet: asked once, then remembered  -->
+            <!--  No Stickies folder yet: asked once, then remembered  -->
             <StackPanel Style="{StaticResource PaneMessage}" Visibility="{Binding Session.NeedsFolder, Converter={StaticResource BoolToVis}}">
                 <materialDesign:PackIcon Kind="FolderOutline" Style="{StaticResource PaneMessageIcon}" />
                 <TextBlock Style="{StaticResource PaneMessageTitle}" Text="Where should issues be kept?" />
-                <TextBlock Style="{StaticResource PaneMessageText}" Text="Issues are shared as files in a _markup folder inside the project's Dropbox folder." />
+                <TextBlock Style="{StaticResource PaneMessageText}" Text="Issues are shared as files in a _stickies folder inside the project's Dropbox folder." />
                 <StackPanel Visibility="{Binding Session.CanCreateNextToModel, Converter={StaticResource BoolToVis}}">
                     <Button
                         Margin="0,16,0,0"
@@ -273,7 +273,7 @@
                     Click="ChooseFolder_Click"
                     Content="Choose folder…"
                     Style="{StaticResource Button.Secondary}"
-                    ToolTip="Pick the project's shared folder (or an existing _markup folder)" />
+                    ToolTip="Pick the project's shared folder (or an existing _stickies folder)" />
             </StackPanel>
 
             <!--  Error  -->
@@ -845,7 +845,7 @@
                                 Content="Change…"
                                 DockPanel.Dock="Right"
                                 Style="{StaticResource Button.Plain}"
-                                ToolTip="Use another markup folder for this model" />
+                                ToolTip="Use another Stickies folder for this model" />
                             <materialDesign:PackIcon
                                 Width="14"
                                 Height="14"

@@ -174,7 +174,7 @@ namespace Stickies.UI
             var folder = Session.FolderPath;
             if (string.IsNullOrEmpty(folder)) return;
             try { Process.Start(new ProcessStartInfo("explorer.exe", "\"" + folder + "\"") { UseShellExecute = true }); }
-            catch (Exception ex) { Infrastructure.AppLog.Warn("Opening the markup folder failed: " + ex.Message); }
+            catch (Exception ex) { Infrastructure.AppLog.Warn("Opening the Stickies folder failed: " + ex.Message); }
         }
 
         private void ChooseFolder_Click(object sender, RoutedEventArgs e)
@@ -187,7 +187,7 @@ namespace Stickies.UI
         {
             using (var dialog = new System.Windows.Forms.FolderBrowserDialog
             {
-                Description = "Choose the project's shared folder. Issues go into its _markup folder.",
+                Description = "Choose the project's shared folder. Issues go into its _stickies folder.",
                 ShowNewFolderButton = true
             })
             {

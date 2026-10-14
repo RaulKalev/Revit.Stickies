@@ -20,7 +20,7 @@ namespace Stickies.Session
         /// <summary>A family document is active.</summary>
         Family,
 
-        /// <summary>No <c>_markup</c> folder found: the user creates or chooses one (asked once, then remembered).</summary>
+        /// <summary>No <c>_stickies</c> folder found: the user creates or chooses one (asked once, then remembered).</summary>
         NeedsFolder,
 
         Connected,
@@ -108,20 +108,26 @@ namespace Stickies.Session
                 ApplyOverlaySetting();
 
                 var root = MarkupFolder.Resolve(_settings.MarkupFolder, model.ModelPath);
+                if (root != null && _settings.MarkupFolder != null &&
+                    !string.Equals(root, Path.GetFullPath(_settings.MarkupFolder), StringComparison.OrdinalIgnoreCase))
+                {
+                    _settings.MarkupFolder = root; // an old _markup folder was renamed to _stickies
+                    SaveSettings();
+                }
                 if (root == null) State = SessionState.NeedsFolder;
                 else Connect(root);
             }
             RefreshAll(); // the state may be unchanged while the model and folder are not
         }
 
-        /// <summary>Creates <c>_markup</c> next to the model (central) file and uses it.</summary>
+        /// <summary>Creates <c>_stickies</c> next to the model (central) file and uses it.</summary>
         public void CreateNextToModel()
         {
             if (!CanCreateNextToModel) return;
             UseFolder(ProposedFolder, remember: false);
         }
 
-        /// <summary>Uses a folder the user picked (the project folder or a <c>_markup</c> folder) and remembers it.</summary>
+        /// <summary>Uses a folder the user picked (the project folder or a <c>_stickies</c> folder) and remembers it.</summary>
         public void UseFolder(string picked) => UseFolder(MarkupFolder.FromPickedFolder(picked), remember: true);
 
         private void UseFolder(string root, bool remember)
@@ -138,8 +144,8 @@ namespace Stickies.Session
             }
             catch (Exception ex)
             {
-                AppLog.Error("Setting up the markup folder failed: " + root, ex);
-                Fail("Could not set up the markup folder " + root + ": " + ex.Message);
+                AppLog.Error("Setting up the Stickies folder failed: " + root, ex);
+                Fail("Could not set up the Stickies folder " + root + ": " + ex.Message);
             }
         }
 
@@ -153,7 +159,7 @@ namespace Stickies.Session
                 _store = new IssueStore(folder);
                 var project = _store.ReadProject();
                 if (project != null && !string.IsNullOrEmpty(project.ModelGuid) && project.ModelGuid != _model.ModelGuid)
-                    AppLog.Warn("Markup folder " + root + " was set up for another model (" + project.ModelGuid + ").");
+                    AppLog.Warn("Stickies folder " + root + " was set up for another model (" + project.ModelGuid + ").");
 
                 _watcher = new MarkupWatcher(folder);
                 StartCompaction(_store);
@@ -163,8 +169,8 @@ namespace Stickies.Session
             }
             catch (Exception ex)
             {
-                AppLog.Error("Opening the markup folder failed: " + root, ex);
-                Fail("Could not open the markup folder " + root + ": " + ex.Message);
+                AppLog.Error("Opening the Stickies folder failed: " + root, ex);
+                Fail("Could not open the Stickies folder " + root + ": " + ex.Message);
             }
         }
 
@@ -208,7 +214,7 @@ namespace Stickies.Session
         /// </summary>
         public async Task<SaveOutcome> SaveAsync(Issue issue, DateTimeOffset? expectedModified)
         {
-            var store = _store ?? throw new InvalidOperationException("No markup folder is connected.");
+            var store = _store ?? throw new InvalidOperationException("No Stickies folder is connected.");
             var outcome = await Task.Run(() => store.Save(issue, expectedModified));
             if (outcome == SaveOutcome.Saved && ReferenceEquals(store, _store))
             {

@@ -13,7 +13,7 @@ namespace Stickies.Core.Models
 
         [JsonProperty(Order = -10)] public int SchemaVersion { get; set; } = CurrentSchemaVersion;
 
-        /// <summary>The project's <c>_markup</c> folder chosen by the user; null = look next to the model.</summary>
+        /// <summary>The project's <c>_stickies</c> folder chosen by the user; null = look next to the model.</summary>
         public string MarkupFolder { get; set; }
 
         public bool OverlayVisible { get; set; } = true;

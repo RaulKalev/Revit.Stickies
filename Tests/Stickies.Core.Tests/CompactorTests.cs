@@ -28,7 +28,7 @@ namespace Stickies.Core.Tests
 
         private static (MarkupFolder folder, IssueStore store) Setup(TempDir dir)
         {
-            var folder = new MarkupFolder(Path.Combine(dir.Path, "_markup"));
+            var folder = new MarkupFolder(Path.Combine(dir.Path, "_stickies"));
             var store = new IssueStore(folder);
             store.Initialize(new MarkupProject { ModelGuid = "m" });
             return (folder, store);

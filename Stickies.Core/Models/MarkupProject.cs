@@ -2,7 +2,7 @@ using Newtonsoft.Json;
 
 namespace Stickies.Core.Models
 {
-    /// <summary><c>_markup/project.json</c>: which model the folder belongs to.</summary>
+    /// <summary><c>_stickies/project.json</c>: which model the folder belongs to.</summary>
     public class MarkupProject
     {
         public const int CurrentSchemaVersion = 1;

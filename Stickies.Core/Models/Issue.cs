@@ -9,7 +9,7 @@ namespace Stickies.Core.Models
     public enum IssuePriority { Low, Normal, High }
 
     /// <summary>
-    /// One review issue. While open it is stored as <c>_markup/active/&lt;id&gt;.json</c>; the file name is the id, so two
+    /// One review issue. While open it is stored as <c>_stickies/active/&lt;id&gt;.json</c>; the file name is the id, so two
     /// users never write the same new file. Geometry is in metres, model coordinates; elements and views are referenced
     /// by UniqueId, never ElementId.
     /// </summary>

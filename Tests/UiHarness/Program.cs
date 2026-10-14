@@ -93,11 +93,11 @@ namespace Stickies.UiHarness
             };
             session.SetModel(model);
             Pump();
-            Check(session.NeedsFolder && session.CanCreateNextToModel, "no _markup yet: asks where to keep issues");
+            Check(session.NeedsFolder && session.CanCreateNextToModel, "no _stickies yet: asks where to keep issues");
             Capture(pane, "02_needs_folder_dark.png");
             Click(pane, "Create next to the model");
             Check(WaitFor(() => session.IsConnected), "create next to the model connects");
-            var root = Path.Combine(dropbox, "_markup");
+            var root = Path.Combine(dropbox, "_stickies");
             var colleague = new IssueStore(new MarkupFolder(root));
             Check(colleague.ReadProject()?.ModelGuid == model.ModelGuid, "project.json names the model");
             Check(vm.ShowNoIssues, "empty project shows 'No issues yet'");

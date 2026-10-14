@@ -16,7 +16,7 @@ namespace Stickies.Core.Tests
         {
             using (var dir = new TempDir())
             {
-                var folder = new MarkupFolder(Path.Combine(dir.Path, "_markup"));
+                var folder = new MarkupFolder(Path.Combine(dir.Path, "_stickies"));
                 var store = new IssueStore(folder);
 
                 store.Initialize(new MarkupProject { ModelGuid = "first", ProjectName = "P1" });
@@ -165,8 +165,8 @@ namespace Stickies.Core.Tests
             using (var dir = new TempDir())
             {
                 var model = Path.Combine(dir.Path, "Project", "Model.rvt");
-                var nextTo = Path.Combine(dir.Path, "Project", "_markup");
-                var chosen = Path.Combine(dir.Path, "Elsewhere", "_markup");
+                var nextTo = Path.Combine(dir.Path, "Project", "_stickies");
+                var chosen = Path.Combine(dir.Path, "Elsewhere", "_stickies");
 
                 Assert.Null(MarkupFolder.Resolve(null, model));            // nothing yet: ask the user
                 Directory.CreateDirectory(nextTo);
@@ -183,6 +183,48 @@ namespace Stickies.Core.Tests
         }
 
         [Fact]
+        public void Old_markup_folder_next_to_the_model_is_renamed_to_stickies()
+        {
+            using (var dir = new TempDir())
+            {
+                var model = Path.Combine(dir.Path, "Project", "Model.rvt");
+                var legacy = Path.Combine(dir.Path, "Project", "_markup");
+                var store = new IssueStore(new MarkupFolder(legacy));
+                store.Initialize(new MarkupProject { ModelGuid = "m" });
+                store.Save(SerializationTests.FullIssue());
+
+                var root = MarkupFolder.Resolve(null, model);
+
+                Assert.Equal(Path.Combine(dir.Path, "Project", "_stickies"), root);
+                Assert.False(Directory.Exists(legacy));
+                Assert.Single(new IssueStore(new MarkupFolder(root)).LoadActive().Issues);
+            }
+        }
+
+        [Fact]
+        public void A_remembered_or_picked_markup_folder_is_renamed_too_and_unrelated_markup_folders_are_left_alone()
+        {
+            using (var dir = new TempDir())
+            {
+                var remembered = Path.Combine(dir.Path, "A", "_markup");
+                new IssueStore(new MarkupFolder(remembered)).Initialize(new MarkupProject { ModelGuid = "m" });
+                Assert.Equal(Path.Combine(dir.Path, "A", "_stickies"), MarkupFolder.Resolve(remembered, null));
+                Assert.Equal(Path.Combine(dir.Path, "A", "_stickies"), MarkupFolder.Resolve(remembered, null)); // already renamed
+
+                var picked = Path.Combine(dir.Path, "B");
+                new IssueStore(new MarkupFolder(Path.Combine(picked, "_markup"))).Initialize(new MarkupProject { ModelGuid = "m" });
+                Assert.Equal(Path.Combine(picked, "_stickies"), MarkupFolder.FromPickedFolder(picked));
+                Assert.True(Directory.Exists(Path.Combine(picked, "_stickies")));
+
+                // A folder that merely happens to be called _markup (no project.json) is not touched.
+                var foreign = Path.Combine(dir.Path, "C", "_markup");
+                Directory.CreateDirectory(foreign);
+                Assert.Null(MarkupFolder.Resolve(null, Path.Combine(dir.Path, "C", "Model.rvt")));
+                Assert.True(Directory.Exists(foreign));
+            }
+        }
+
+        [Fact]
         public void Local_settings_store_defaults_and_round_trips()
         {
             using (var dir = new TempDir())
@@ -190,7 +232,7 @@ namespace Stickies.Core.Tests
                 var store = new LocalSettingsStore(dir.Path);
                 Assert.True(store.Load("guid-1").OverlayVisible);
 
-                store.Save("guid-1", new LocalSettings { OverlayVisible = false, MarkupFolder = @"D:\x\_markup" });
+                store.Save("guid-1", new LocalSettings { OverlayVisible = false, MarkupFolder = @"D:\x\_stickies" });
                 Assert.False(store.Load("guid-1").OverlayVisible);
                 Assert.True(store.Load("guid-2").OverlayVisible);
 

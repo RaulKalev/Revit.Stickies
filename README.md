@@ -37,7 +37,7 @@ To remove it, double-click **Uninstall.cmd**. To update, install the new package
 Click **Stickies** on the ribbon to open the Stickies pane. You can dock it anywhere, like any other Revit panel.
 
 The first time you open a project, Stickies asks where to keep its notes. Pick **Create next to the model** and a
-`_markup` folder is made next to the model file. For a workshared model, that's next to the central file. Everyone
+`_stickies` folder is made next to the model file. For a workshared model, that's next to the central file. Everyone
 who opens the model from the same Dropbox folder then shares the same notes. If the model isn't in a folder (for
 example a cloud model), choose the project's shared folder yourself. Stickies remembers it.
 
@@ -116,13 +116,14 @@ theme.
 ```
 P123 School/            the project's Dropbox folder, next to the model
   P123_EN.rvt
-  _markup/
+  _stickies/
     project.json        which model these notes belong to
     active/             one small file per note
     archive/            done notes, one file per month (2026-10.json, ...)
 ```
 
-Each note is a plain JSON file, so the folder can be backed up, synced or read by other tools.
+Each note is a plain JSON file, so the folder can be backed up, synced or read by other tools. The format is
+described in [docs/DATA-FORMAT.md](docs/DATA-FORMAT.md).
 
 **Tidying up.** Once a note is resolved or closed and nobody has touched it for a week, Stickies moves it from
 `active/` into that month's archive file. That keeps the active folder small. Archived notes still show in the list
