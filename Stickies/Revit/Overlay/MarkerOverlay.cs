@@ -36,6 +36,7 @@ namespace Stickies.Revit.Overlay
         private readonly MarkerServer _server = new MarkerServer();
         private readonly MouseHook _hook;
         private bool _registered, _dirty = true;
+        private string _lastSummary;
 
         private IReadOnlyList<MarkerInfo> _markers = new MarkerInfo[0];
         private volatile IReadOnlyList<ViewMapping> _mappings = new ViewMapping[0];
@@ -76,6 +77,7 @@ namespace Stickies.Revit.Overlay
                 if (!active.Contains(MarkerServer.ServerId)) active.Add(MarkerServer.ServerId);
                 service.SetActiveServers(active);
                 _registered = true;
+                AppLog.Info("Markers: overlay registered (" + active.Count + " active DirectContext3D servers).");
             }
             catch (Exception ex)
             {
@@ -179,6 +181,11 @@ namespace Stickies.Revit.Overlay
             }
             _server.Scenes = scenes;
             UpdateMappings(uidoc);
+
+            var summary = "Markers: " + _markers.Count + " to draw; open views: " +
+                          (scenes.Count == 0 ? "none" : string.Join(", ", scenes.Select(s => s.Key + "=" + s.Value.Count)));
+            if (summary != _lastSummary) AppLog.Info(summary);
+            _lastSummary = summary;
         }
 
         private static void Redraw(UIApplication app)

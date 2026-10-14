@@ -46,8 +46,13 @@ namespace Stickies.Revit.Overlay
         private int _suspended;
         private bool _loggedRenderError;
 
-        // Buffers handed to Revit stay alive until the next frame.
-        private readonly List<IDisposable> _lastFrame = new List<IDisposable>();
+        /// <summary>How far a marker sits in front of its point, toward the viewer (feet), and between its layers.</summary>
+        private const double Nudge = 0.5, LayerStep = 0.02;
+        private const int KeptFrames = 16;
+
+        // Buffers handed to Revit stay alive for the last few frames.
+        private readonly Queue<List<IDisposable>> _frames = new Queue<List<IDisposable>>();
+        private readonly HashSet<string> _logged = new HashSet<string>();
         private readonly object _frameLock = new object();
 
         public bool Visible { get => _visible; set => _visible = value; }
@@ -78,8 +83,14 @@ namespace Stickies.Revit.Overlay
         public bool UsesHandles() => false;
         public bool UseInTransparentPass(View dBView) => false;
 
-        public bool CanExecute(View dBView) =>
-            dBView != null && _visible && !Suspended && _scenes.TryGetValue(dBView.Id.Value, out var markers) && markers.Count > 0;
+        public bool CanExecute(View dBView)
+        {
+            var result = dBView != null && _visible && !Suspended && _scenes.TryGetValue(dBView.Id.Value, out var markers) && markers.Count > 0;
+            if (dBView != null && LogOnce("can:" + dBView.Id.Value + ":" + result))
+                AppLog.Info("Markers: Revit asks about view " + dBView.Id.Value + " (" + dBView.Name + "): " + (result ? "drawing" : "nothing to draw") +
+                            (_scenes.ContainsKey(dBView.Id.Value) ? "" : " (no scene for this view)") + (_visible ? "" : " (markers hidden)"));
+            return result;
+        }
 
         public Outline GetBoundingBox(View dBView)
         {
@@ -111,11 +122,16 @@ namespace Stickies.Revit.Overlay
                 var eye = V(camera.EyePosition);
                 var perspective = camera.ProjectionMethod == ProjectionMethod.Perspective;
                 var near = camera.NearDistance;
-                var span = Math.Max(camera.FarDistance - near, 1);
-                var layerStep = Math.Max(span * 1e-4, 0.002);
-                var baseDepth = near + Math.Max(span * 1e-3, 0.05) + 3 * layerStep;
                 var feetPerPixel = camera.HorizontalExtent / widthPx; // at the target distance
                 var targetDistance = Math.Max(camera.TargetDistance, 1e-6);
+
+                if (LogOnce("render:" + dBView.Id.Value))
+                    AppLog.Info("Markers: first draw of view " + dBView.Id.Value + " (" + markers.Count + " markers) camera " +
+                                (perspective ? "perspective" : "orthographic") + " eye " + eye + " dir " + dir + " up " + up +
+                                " near " + near + " far " + camera.FarDistance + " target " + camera.TargetDistance +
+                                " extent " + camera.HorizontalExtent + " x " + camera.VerticalExtent + " ft, view " + widthPx +
+                                " px wide => " + feetPerPixel + " ft/px; first marker at " + markers[0].PointFeet +
+                                " depth " + (markers[0].PointFeet - eye).Dot(dir));
 
                 var meshes = new List<MarkerMesh> { new MarkerMesh() };
                 foreach (var m in markers)
@@ -124,22 +140,18 @@ namespace Stickies.Revit.Overlay
                     var d = rel.Dot(dir);
                     if (perspective && d <= near) continue; // behind the camera
 
+                    // At the issue's own point, nudged toward the viewer so the surface it sits on does not cover it.
+                    // (Revit clips overlay graphics to what the view shows, so the marker must stay near its point.)
                     Func<double, double, int, V3> toWorld = (x, y, layer) =>
                     {
-                        var depth = baseDepth - layer * layerStep; // higher layers nearer the viewer
-                        V3 centre;
-                        double fpp;
+                        var nudge = Nudge + layer * LayerStep; // higher layers nearer the viewer
                         if (perspective)
                         {
-                            centre = eye + rel * (depth / d);
-                            fpp = feetPerPixel * depth / targetDistance;
+                            var depth = Math.Max(d - nudge, near + LayerStep * 4);
+                            var fppAtDepth = feetPerPixel * depth / targetDistance;
+                            return eye + rel * (depth / d) + right * (x * fppAtDepth) + up * (y * fppAtDepth);
                         }
-                        else
-                        {
-                            centre = m.PointFeet + dir * (depth - d);
-                            fpp = feetPerPixel;
-                        }
-                        return centre + right * (x * fpp) + up * (y * fpp);
+                        return m.PointFeet - dir * nudge + right * (x * feetPerPixel) + up * (y * feetPerPixel);
                     };
 
                     if (meshes[meshes.Count - 1].Vertices.Count > 60000) meshes.Add(new MarkerMesh()); // 16-bit indices
@@ -148,9 +160,13 @@ namespace Stickies.Revit.Overlay
 
                 lock (_frameLock)
                 {
-                    foreach (var d in _lastFrame) d.Dispose();
-                    _lastFrame.Clear();
-                    foreach (var mesh in meshes) Flush(mesh);
+                    var frame = new List<IDisposable>();
+                    foreach (var mesh in meshes) Flush(mesh, frame);
+                    // Revit may draw a view several times (passes, tiles, several open views) before it is done with
+                    // the buffers, so keep the last few frames alive instead of disposing at the next call.
+                    _frames.Enqueue(frame);
+                    while (_frames.Count > KeptFrames)
+                        foreach (var d in _frames.Dequeue()) d.Dispose();
                 }
             }
             catch (Exception ex)
@@ -161,7 +177,7 @@ namespace Stickies.Revit.Overlay
             }
         }
 
-        private void Flush(MarkerMesh mesh)
+        private void Flush(MarkerMesh mesh, List<IDisposable> frame)
         {
             var vertexCount = mesh.Vertices.Count;
             var triangleCount = mesh.TriangleCount;
@@ -169,7 +185,7 @@ namespace Stickies.Revit.Overlay
 
             var vertexFloats = VertexPositionColored.GetSizeInFloats() * vertexCount;
             var vertices = new VertexBuffer(vertexFloats);
-            _lastFrame.Add(vertices);
+            frame.Add(vertices);
             vertices.Map(vertexFloats);
             var vs = vertices.GetVertexStreamPositionColored();
             foreach (var v in mesh.Vertices)
@@ -178,7 +194,7 @@ namespace Stickies.Revit.Overlay
 
             var indexShorts = IndexTriangle.GetSizeInShortInts() * triangleCount;
             var indices = new IndexBuffer(indexShorts);
-            _lastFrame.Add(indices);
+            frame.Add(indices);
             indices.Map(indexShorts);
             var ts = indices.GetIndexStreamTriangle();
             for (var i = 0; i < mesh.Indices.Count; i += 3)
@@ -187,9 +203,15 @@ namespace Stickies.Revit.Overlay
 
             var format = new VertexFormat(VertexFormatBits.PositionColored);
             var effect = new EffectInstance(VertexFormatBits.PositionColored);
-            _lastFrame.Add(format);
-            _lastFrame.Add(effect);
+            frame.Add(format);
+            frame.Add(effect);
             DrawContext.FlushBuffer(vertices, vertexCount, indices, triangleCount * 3, format, effect, PrimitiveType.TriangleList, 0, triangleCount);
+        }
+
+        /// <summary>True the first time a key is seen this session (diagnostics without flooding the log on every redraw).</summary>
+        private bool LogOnce(string key)
+        {
+            lock (_logged) return _logged.Add(key);
         }
 
         private static V3 V(XYZ p) => new V3(p.X, p.Y, p.Z);
