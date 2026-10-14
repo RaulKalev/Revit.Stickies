@@ -3,11 +3,10 @@ using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Stickies.Infrastructure;
-using Stickies.Shell;
 
 namespace Stickies
 {
-    /// <summary>Shows the Stickies pane, or hides it when it is already shown.</summary>
+    /// <summary>Shows the Stickies panel (docked pane, or a window when the pane is not available), or hides it.</summary>
     [Transaction(TransactionMode.ReadOnly)]
     public class TogglePaneCommand : IExternalCommand
     {
@@ -15,20 +14,17 @@ namespace Stickies
         {
             try
             {
-                if (!DockablePane.PaneIsRegistered(PaneShell.PaneId) || PaneShell.Host == null)
+                if (App.Instance == null)
                 {
-                    TaskDialog.Show("Stickies", "The Stickies pane becomes available after Revit is restarted.");
-                    return Result.Cancelled;
+                    message = "Stickies is not loaded.";
+                    return Result.Failed;
                 }
-
-                var pane = commandData.Application.GetDockablePane(PaneShell.PaneId);
-                if (pane.IsShown()) pane.Hide();
-                else pane.Show();
+                App.Instance.TogglePanel(commandData.Application);
                 return Result.Succeeded;
             }
             catch (Exception ex)
             {
-                AppLog.Error("Toggling the Stickies pane failed", ex);
+                AppLog.Error("Showing the Stickies panel failed", ex);
                 message = ex.Message;
                 return Result.Failed;
             }

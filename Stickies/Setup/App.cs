@@ -3,7 +3,6 @@ using System.Windows.Media;
 using Autodesk.Revit.UI;
 using Autodesk.Revit.UI.Events;
 using ricaun.Revit.UI;
-using PackIconKind = MaterialDesignThemes.Wpf.PackIconKind;
 using Stickies.Infrastructure;
 using Stickies.Overlay;
 using Stickies.Revit;
@@ -29,6 +28,9 @@ namespace Stickies
         /// <summary>Marker visibility for this session, shared by the ribbon toggle, the pane and (later) the renderer.</summary>
         internal static OverlayState Overlay { get; } = new OverlayState();
 
+        /// <summary>This copy of the add-in (commands reach the panel through it).</summary>
+        internal static App Instance { get; private set; }
+
         private RibbonPanel _ribbonPanel;
         private PushButton _paneButton;
         private PushButton _overlayButton;
@@ -37,14 +39,16 @@ namespace Stickies
         private DocumentTracker _tracker;
         private RevitRequests _requests;
         private Revit.Overlay.MarkerOverlay _markers;
+        private PaneWindow _window;
 
         public Result OnStartup(UIControlledApplication application)
         {
+            Instance = this;
             try { application.CreateRibbonTab(TabName); } catch { /* tab already exists (other RK Tools plugins) */ }
             _ribbonPanel = application.CreateOrSelectPanel(TabName, PanelName);
 
             _paneButton = _ribbonPanel.CreatePushButton<TogglePaneCommand>("Stickies");
-            _paneButton.SetToolTip("Show or hide the Stickies pane.");
+            _paneButton.SetToolTip("Show or hide the Stickies panel.");
             _overlayButton = _ribbonPanel.CreatePushButton<ToggleOverlayCommand>("Markers");
             UpdateRibbon();
 
@@ -53,7 +57,7 @@ namespace Stickies
             _requests = new RevitRequests(); // ExternalEvent: must be created here, in API context
             _markers = new Revit.Overlay.MarkerOverlay(application, _requests, Overlay); // registers the DirectContext3D server
             _pane = new MarkupPane(Overlay, _session, new RevitHost(_requests), _markers);
-            if (!PaneShell.Attach(_pane)) AppLog.Warn("The Stickies pane is not available in this session; restart Revit.");
+            if (!PaneShell.Attach(_pane)) AppLog.Info("The docked Stickies pane is not available in this session; the panel opens in a window.");
 
             Overlay.Changed += OnOverlayChanged;
             _tracker = new DocumentTracker(application, model => _session.SetModel(model));
@@ -68,6 +72,7 @@ namespace Stickies
         {
             application.ThemeChanged -= OnThemeChanged;
             Overlay.Changed -= OnOverlayChanged;
+            CloseWindow(reattach: false);
             _tracker?.Dispose();
             _tracker = null;
             _session?.Dispose();
@@ -79,7 +84,52 @@ namespace Stickies
             PaneShell.Detach(_pane);
             _pane = null;
             _ribbonPanel?.Remove();
+            if (Instance == this) Instance = null;
             return Result.Succeeded;
+        }
+
+        // ------------------------------------------------------------------ panel: docked pane or window
+
+        /// <summary>
+        /// Shows or hides the panel: in the docked pane when Revit has it, otherwise in a floating window (Revit creates
+        /// docked panes only at startup, so after an AppLoader load the window is used until the next restart).
+        /// </summary>
+        internal void TogglePanel(UIApplication app)
+        {
+            if (PaneShell.TryGetPane(app, out var pane))
+            {
+                CloseWindow(reattach: true); // the panel goes back into the pane
+                if (pane.IsShown()) pane.Hide();
+                else pane.Show();
+                return;
+            }
+
+            if (_window != null)
+            {
+                CloseWindow(reattach: true);
+                return;
+            }
+
+            PaneShell.Detach(_pane);
+            _window = new PaneWindow(_pane, app.MainWindowHandle);
+            _window.Closed += (s, e) =>
+            {
+                var closed = (PaneWindow)s;
+                if (closed != _window) return;
+                _window = null;
+                PaneShell.Attach(closed.Release());
+            };
+            _window.Show(); // modeless
+        }
+
+        private void CloseWindow(bool reattach)
+        {
+            var window = _window;
+            if (window == null) return;
+            _window = null; // the Closed handler then leaves the panel alone
+            var panel = window.Release();
+            window.Close();
+            if (reattach && panel != null) PaneShell.Attach(panel);
         }
 
         private void OnThemeChanged(object sender, ThemeChangedEventArgs e) => UpdateRibbon();
@@ -97,11 +147,10 @@ namespace Stickies
 
                 if (_overlayButton == null) return;
                 var on = Overlay.IsVisible;
-                var glyph = on ? PackIconKind.EyeOutline : PackIconKind.EyeOffOutline;
                 var colour = dark ? Color.FromRgb(0xF2, 0xF2, 0xF2) : Color.FromRgb(0x3A, 0x3A, 0x3C);
                 _overlayButton
-                    .SetLargeImage(GlyphImage.Render(glyph, 32, colour))
-                    .SetImage(GlyphImage.Render(glyph, 16, colour))
+                    .SetLargeImage(RibbonIcons.Eye(on, 32, colour))
+                    .SetImage(RibbonIcons.Eye(on, 16, colour))
                     .SetText(on ? "Markers\nOn" : "Markers\nOff")
                     .SetToolTip(on ? "Review markers are shown on views. Click to hide them." : "Review markers are hidden. Click to show them on views.");
             }

@@ -305,11 +305,55 @@ namespace Stickies.UiHarness
             Capture(reloaded, "12_list_high_contrast.png");
             ThemeManager.ForceHighContrast = null;
 
+            // ================================================================ floating window (pane not created: AppLoader load)
+            shellHost.Content = null;
+            var floating = new PaneWindow(reloaded, IntPtr.Zero) { ShowActivated = false, Left = 420, Top = 20 };
+            floating.Show();
+            Pump();
+            Check(reloaded.IsVisible && ReferenceEquals(floating.Content, reloaded), "panel shows in the floating window");
+            var released = floating.Release();
+            floating.Close();
+            shellHost.Content = released;
+            Pump();
+            Check(ReferenceEquals(shellHost.Content, reloaded) && reloaded.IsVisible, "closing the window hands the panel back to the pane");
+
             reloadedSession.Dispose();
             window.Close();
 
-            SaveImage(GlyphImage.Render(PackIconKind.EyeOutline, 32, Color.FromRgb(0xF2, 0xF2, 0xF2)), "ribbon_markers_on_dark.png");
+            SaveImage(RibbonPreview(), "ribbon_buttons.png");
             try { Directory.Delete(work, true); } catch { }
+        }
+
+        /// <summary>The ribbon as Revit shows it: the Stickies icon next to the Markers eye (on, off), dark and light theme.</summary>
+        private static BitmapSource RibbonPreview()
+        {
+            const int cell = 48;
+            var visual = new DrawingVisual();
+            using (var dc = visual.RenderOpen())
+            {
+                for (var row = 0; row < 2; row++)
+                {
+                    var dark = row == 0;
+                    var y = row * cell;
+                    dc.DrawRectangle(new SolidColorBrush(dark ? Color.FromRgb(0x3B, 0x44, 0x53) : Color.FromRgb(0xF5, 0xF5, 0xF5)), null, new Rect(0, y, cell * 4, cell));
+                    var icon = new BitmapImage(new Uri(Path.Combine(StickiesRoot(), "Stickies", "Assets", (dark ? "Dark" : "Light") + " - Stickies.tiff")));
+                    var colour = dark ? Color.FromRgb(0xF2, 0xF2, 0xF2) : Color.FromRgb(0x3A, 0x3A, 0x3C);
+                    dc.DrawImage(icon, new Rect(8, y + 8, 32, 32));
+                    dc.DrawImage(RibbonIcons.Eye(true, 32, colour), new Rect(cell + 8, y + 8, 32, 32));
+                    dc.DrawImage(RibbonIcons.Eye(false, 32, colour), new Rect(2 * cell + 8, y + 8, 32, 32));
+                    dc.DrawImage(RibbonIcons.Eye(true, 16, colour), new Rect(3 * cell + 16, y + 16, 16, 16));
+                }
+            }
+            var bitmap = new RenderTargetBitmap(cell * 4, cell * 2, 96, 96, PixelFormats.Pbgra32);
+            bitmap.Render(visual);
+            return bitmap;
+        }
+
+        private static string StickiesRoot()
+        {
+            var dir = new DirectoryInfo(AppContext.BaseDirectory);
+            while (dir != null && !File.Exists(Path.Combine(dir.FullName, "Stickies.sln"))) dir = dir.Parent;
+            return dir?.FullName ?? AppContext.BaseDirectory;
         }
 
         private static Issue Issue(string title, string author, IssueStatus status, IssuePriority priority, string assignee, DateTimeOffset at)

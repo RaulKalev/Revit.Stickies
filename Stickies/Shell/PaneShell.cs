@@ -54,6 +54,26 @@ namespace Stickies.Shell
             }
         }
 
+        /// <summary>
+        /// The docked pane, when Revit has created it. Revit creates dockable panes only while it starts up, so a pane
+        /// registered by an add-in loaded later (ricaun AppLoader) exists only after the next Revit restart; until then
+        /// this returns false and the UI is shown in a floating window instead.
+        /// </summary>
+        public static bool TryGetPane(UIApplication app, out DockablePane pane)
+        {
+            pane = null;
+            if (Host == null || !DockablePane.PaneIsRegistered(PaneId)) return false;
+            try
+            {
+                pane = app.GetDockablePane(PaneId);
+                return pane != null;
+            }
+            catch (Autodesk.Revit.Exceptions.ArgumentException)
+            {
+                return false; // "The requested dockable pane has not been created yet."
+            }
+        }
+
         /// <summary>Puts this copy's UI into the pane host, replacing whatever an earlier copy left there.</summary>
         public static bool Attach(FrameworkElement content)
         {
